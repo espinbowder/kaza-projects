@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KAZA Projects Mock-up</title>
+<meta name="description" content="Who is doing what, and where, in the Kavango Zambezi Transfrontier Conservation Area.">
+<style>
+:root {
+  /* WWF brand. Principal colours: black and white. Supporting colours (WWF palette), used sparingly:
+     Green #007932 = data, Orange #F07D00 = selection, Blue #00728F = WDA outlines; dark mode uses
+     Medium-green #8CC63F, Yellow #F5D200 and Aqua #009191.
+     Font: WWF alternate font. To change it, edit --font below. */
+  --font: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  --bg: #f5f5f3; --panel: #ffffff; --ink: #000000; --muted: #555555; --line: #dddddd; --soft: #f0f0ee;
+  --brand: #000000; --on-brand: #ffffff;
+  --accent: #007932; --accent-soft: #e2efe6; --pick: #f07d00; --pick-soft: #fde8d2;
+  --foot: #007932; --wda-line: #00728f; --kaza: #000000; --land: #fbfbfa; --country: #6b6b6b;
+  --expired: #8a8a8a; --r: 8px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #000000; --panel: #141414; --ink: #ffffff; --muted: #b0b0b0; --line: #333333; --soft: #1f1f1f;
+    --brand: #ffffff; --on-brand: #000000;
+    --accent: #8cc63f; --accent-soft: #24331a; --pick: #f5d200; --pick-soft: #3a3300;
+    --foot: #8cc63f; --wda-line: #009191; --kaza: #ffffff; --land: #0a0a0a; --country: #8a8a8a; --expired: #777777;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #000000; --panel: #141414; --ink: #ffffff; --muted: #b0b0b0; --line: #333333; --soft: #1f1f1f;
+  --brand: #ffffff; --on-brand: #000000;
+  --accent: #8cc63f; --accent-soft: #24331a; --pick: #f5d200; --pick-soft: #3a3300;
+  --foot: #8cc63f; --wda-line: #009191; --kaza: #ffffff; --land: #0a0a0a; --country: #8a8a8a; --expired: #777777;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 var(--font); }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 20px 16px 40px; }
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin-bottom: 16px; }
+h1 { font-size: 26px; line-height: 1.2; margin: 0 0 4px; letter-spacing: -.01em; }
+header p { margin: 0; color: var(--muted); max-width: 70ch; }
+.add { display: inline-block; padding: 9px 14px; border-radius: 6px; background: var(--brand); color: var(--on-brand); text-decoration: none; font-weight: 600; white-space: nowrap; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; }
+.kpi b { display: block; font-size: 26px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.kpi span { color: var(--muted); font-size: 13px; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 10px; margin-bottom: 14px; position: sticky; top: 0; z-index: 5; }
+.filters select, .filters input { font: inherit; font-size: 14px; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-width: 0; }
+.filters select { max-width: 190px; }
+.filters input[type=search] { flex: 1 1 180px; }
+.filters select.set { border-color: var(--pick); background: var(--pick-soft); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { font: inherit; font-size: 14px; border: 0; background: transparent; color: var(--ink); padding: 6px 10px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--brand); color: var(--on-brand); }
+.reset { font: inherit; font-size: 14px; border: 0; background: none; color: var(--ink); text-decoration: underline; cursor: pointer; padding: 6px 4px; }
+.count { color: var(--muted); font-size: 13px; margin-left: auto; }
+.main { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 14px; margin-bottom: 14px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; min-width: 0; }
+.card h2 { font-size: 15px; margin: 0 0 8px; }
+.card h2 small { font-weight: 400; color: var(--muted); }
+.mapbox { position: relative; padding: 0; overflow: hidden; }
+.mapbox h2 { padding: 12px 14px 0; }
+svg.map { display: block; width: 100%; height: 520px; touch-action: none; cursor: grab; background: var(--land); }
+.map .country { fill: none; stroke: var(--country); stroke-width: 1.2; vector-effect: non-scaling-stroke; pointer-events: none; }
+.map .wda { fill: none; stroke: var(--wda-line); stroke-width: 1.2; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+.map .kaza { fill: none; stroke: var(--kaza); stroke-width: 1.4; vector-effect: non-scaling-stroke; pointer-events: none; opacity: .75; }
+.map .foot { stroke-width: .8; vector-effect: non-scaling-stroke; }
+.map .foot.hl { fill: none !important; stroke: var(--ink) !important; stroke-opacity: 1 !important; stroke-width: 2.5; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 8px 14px 10px; font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); }
+.legend i { display: inline-block; width: 16px; height: 10px; margin-right: 6px; vertical-align: -1px; border-radius: 2px; }
+.zoom { position: absolute; right: 10px; top: 44px; display: grid; gap: 4px; }
+.zoom button { width: 32px; height: 32px; font-size: 18px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 6px; cursor: pointer; }
+.pop { position: absolute; z-index: 4; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.18); padding: 8px; width: 290px; min-width: 200px; min-height: 70px; overflow: auto; resize: both; font-size: 13.5px; }
+.pop h3 { font-size: 12.5px; margin: 0 0 4px; color: var(--muted); font-weight: 500; }
+.pop button { display: block; width: 100%; text-align: left; font: inherit; background: none; border: 0; border-radius: 5px; padding: 5px 6px; color: var(--ink); cursor: pointer; }
+.pop button:hover { background: var(--soft); }
+.tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: var(--panel); padding: 6px 9px; border-radius: 6px; font-size: 13px; max-width: 280px; }
+.tip span { display: block; opacity: .8; font-size: 12px; }
+.list { max-height: 600px; overflow: auto; margin: 0 -14px -12px; border-top: 1px solid var(--line); }
+.item { display: block; width: 100%; text-align: left; font: inherit; background: none; border: 0; border-bottom: 1px solid var(--line); padding: 9px 14px; cursor: pointer; color: var(--ink); }
+.item:hover, .item.hl { background: var(--soft); }
+.item b { display: block; font-weight: 600; font-size: 14px; }
+.item span { color: var(--muted); font-size: 12.5px; }
+.badge { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 1px 6px; border-radius: 10px; margin-right: 6px; }
+.badge.Active { background: var(--accent-soft); color: var(--accent); }
+.badge.Expired { background: var(--soft); color: var(--muted); }
+.charts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
+.bars { display: grid; grid-template-columns: minmax(0, 46%) minmax(0, 1fr); gap: 3px 10px; align-items: center; font-size: 13px; }
+.bars .lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); cursor: pointer; text-align: left; font: inherit; font-size: 13px; background: none; border: 0; padding: 2px 0; }
+.bars .lab:hover { text-decoration: underline; }
+.bars .bar { display: flex; align-items: center; gap: 6px; cursor: pointer; min-height: 20px; }
+.bars .bar i { display: block; height: 14px; background: var(--accent); border-radius: 0 4px 4px 0; min-width: 2px; }
+.bars .bar.on i { background: var(--pick); }
+.bars .bar.dim i { opacity: .35; }
+.bars .bar em { font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.cols { display: flex; align-items: flex-end; gap: 2px; height: 150px; padding-top: 6px; border-bottom: 1px solid var(--line); }
+.cols div { flex: 1; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 1px; position: relative; cursor: default; }
+.cols div:hover { background: var(--pick); }
+.colx { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-top: 4px; }
+.note { color: var(--muted); font-size: 12.5px; margin: 8px 0 0; }
+/* Project details: a floating window. Drag the grey bar to move it, drag the bottom-right corner to resize it. */
+dialog.win { position: fixed; inset: auto; margin: 0; top: 90px; left: 50%; width: 600px; height: 520px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px);
+  min-width: 280px; min-height: 180px; resize: both; overflow: auto; padding: 0; z-index: 30;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); box-shadow: 0 12px 40px rgba(0,0,0,.28); }
+.win-bar { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 10px; padding: 7px 8px 7px 14px; background: var(--soft);
+  border-bottom: 1px solid var(--line); cursor: move; user-select: none; touch-action: none; }
+.win-bar span { flex: 1; font-size: 12.5px; color: var(--muted); }
+.pop h3 { cursor: move; user-select: none; touch-action: none; }
+.dlg { padding: 18px 20px 20px; }
+.dlg h2 { margin: 0 0 6px; font-size: 19px; }
+.dlg dl { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 6px 12px; margin: 12px 0 0; font-size: 14px; }
+.dlg dt { color: var(--muted); }
+.dlg dd { margin: 0; }
+.close { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.dl { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13.5px; }
+.dl a, .dl button { color: var(--ink); font: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+.about ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13.5px; }
+.about li { margin: 3px 0; }
+footer { color: var(--muted); font-size: 12.5px; margin-top: 10px; }
+footer p { margin: 4px 0; }
+:focus-visible { outline: 2px solid var(--pick); outline-offset: 2px; }
+@media (max-width: 960px) { .main { grid-template-columns: 1fr; } .charts { grid-template-columns: 1fr 1fr; } svg.map { height: 420px; } .list { max-height: 420px; } }
+@media (max-width: 620px) { svg.map { height: 320px; } .filters { position: static; } .kpis { grid-template-columns: 1fr 1fr; } .charts { grid-template-columns: 1fr; } .filters select { max-width: none; flex: 1 1 45%; } .count { margin-left: 0; } .dlg dl { grid-template-columns: 1fr; } .dlg dt { margin-top: 6px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Who is doing what in KAZA</h1>
+      <p>Conservation and development projects in the Kavango Zambezi Transfrontier Conservation Area, as reported by the organisations involved. <span id="updated"></span></p>
+    </div>
+    <a class="add" href="picker.html">Add your project</a>
+  </header>
+
+  <section class="kpis" aria-label="Key figures">
+    <div class="kpi"><b id="k-proj">–</b><span>projects shown</span></div>
+    <div class="kpi"><b id="k-end">–</b><span>end within the next 12 months</span></div>
+    <div class="kpi"><b id="k-org">–</b><span>organisations involved</span></div>
+    <div class="kpi"><b id="k-bud">–</b><span id="k-bud-l">total budgets reported (USD)</span></div>
+  </section>
+
+  <section class="filters" aria-label="Filters">
+    <div class="seg" role="group" aria-label="Project status">
+      <button data-st="" aria-pressed="false">All</button><button data-st="Active" aria-pressed="true">Active</button><button data-st="Expired" aria-pressed="false">Expired</button>
+    </div>
+    <select id="f-country" aria-label="Country"></select>
+    <select id="f-wda" aria-label="Wildlife Dispersal Area"></select>
+    <select id="f-theme" aria-label="Theme"></select>
+    <select id="f-funder" aria-label="Funder"></select>
+    <select id="f-org" aria-label="Implementing partner"></select>
+    <input type="search" id="f-q" placeholder="Search titles and organisations" aria-label="Search">
+    <button class="reset" id="reset" type="button">Reset</button>
+    <span class="count" id="count"></span>
+  </section>
+
+  <section class="main">
+    <div class="card mapbox">
+      <h2>Where the projects work <small>· mock-up: one colour per project, small areas brightest; point at the map to count projects, click to see them</small></h2>
+      <svg class="map" id="map" role="img" aria-label="Map of project areas in KAZA"></svg>
+      <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zreset" aria-label="Show all of KAZA">⤢</button></div>
+      <div class="pop" id="pop" hidden></div>
+      <div class="legend">
+        <span><i style="background:linear-gradient(90deg,#DA1D52,#F07D00,#F5D200,#8CC63F,#009191,#00728F,#812990)"></i>Project areas: each project has its own colour; small areas are brighter, large areas fainter</span>
+        <span><i style="border:2px solid var(--ink)"></i>Selected project</span>
+        <span><i style="border:1.5px dashed var(--wda-line)"></i>Wildlife Dispersal Area</span>
+        <span><i style="border:1.5px solid var(--country)"></i>Country border</span>
+        <span><i style="border:1.5px solid var(--kaza)"></i>KAZA boundary</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Projects <small id="list-n"></small></h2>
+      <div class="list" id="list" role="list"></div>
+    </div>
+  </section>
+
+  <section class="charts">
+    <div class="card"><h2>Themes <small>· projects per theme</small></h2><div class="bars" id="c-theme"></div><p class="note">A project can address several themes, so these numbers add up to more than the number of projects.</p></div>
+    <div class="card"><h2>Wildlife Dispersal Areas <small>· projects per WDA</small></h2><div class="bars" id="c-wda"></div><p class="note">A project can count in several WDAs, so these numbers can't be added up. Whole-KAZA projects count in all six; other projects count where at least 2% of their area lies in the WDA.</p></div>
+    <div class="card"><h2>Countries <small>· projects per country</small></h2><div class="bars" id="c-country"></div><p class="note">A project that works in several countries counts once in each, so these numbers can't be added up.</p></div>
+    <div class="card"><h2>Funders <small>· projects funded, top 12</small></h2><div class="bars" id="c-funder"></div><p class="note">Number of projects each funder supports, not amounts: most projects have several funders and many amounts are not disclosed. German Government includes funding through KfW, BMZ, GIZ, IKI and BMBF.</p></div>
+    <div class="card"><h2>Implementing partners <small>· projects, top 12</small></h2><div class="bars" id="c-org"></div><p class="note">Primary and local partners together. Most projects have several partners, so these numbers can't be added up.</p></div>
+    <div class="card"><h2>Project starts <small>· projects starting per year</small></h2><div class="cols" id="c-year"></div><div class="colx" id="c-year-x"></div><p class="note">By the start date reported. Projects without a start date are left out.</p></div>
+  </section>
+
+  <section class="card dl" aria-label="Downloads">
+    <b>Data</b>
+    <button id="csv" type="button">Download the projects shown (CSV)</button>
+    <a href="data/kaza_projects.geojson" download>All projects with map shapes (GeoJSON)</a>
+    <a href="data/tables.json" download>Funding, partners and WDAs (JSON)</a>
+  </section>
+
+  <section class="card about" aria-label="About the data">
+    <h2>How to read these numbers</h2>
+    <ul>
+      <li>The projects are those reported by the organisations involved. The list is not complete, and the details are as reported.</li>
+      <li>Counts per country, WDA, theme, funder or partner can't be added up: one project often works in several countries or WDAs, covers several themes and has several funders and partners.</li>
+      <li>Budgets are for the whole project, as reported, and may include work outside KAZA. They can't be split by country, WDA or theme, and not every project discloses its budget, so the total is a lower limit.</li>
+      <li>A project counts as active when its end date has not passed, or when no end date is given.</li>
+      <li>The map shows the areas where projects work. Areas are approximate, and overlapping projects show as darker shading.</li>
+    </ul>
+  </section>
+
+  <footer id="rules"></footer>
+</div>
+
+<dialog id="dlg" class="win" aria-label="Project details">
+  <div class="win-bar" id="dlg-bar"><span>Project details · drag this bar to move, drag the bottom-right corner to resize</span><button class="close" id="dlg-close" type="button">Close</button></div>
+  <div class="dlg" id="dlg-body"></div>
+</dialog>
+<div class="tip" id="tip" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+// Load a data file; if it fails, say which file and why (shown on the page and in the browser console).
+const getJSON = u => fetch(u, {cache: 'no-cache'}).then(r => {
+  if (!r.ok) throw new Error(`${u}: the server answered ${r.status} ${r.statusText}`);
+  return r.text();
+}).then(t => { try { return JSON.parse(t); } catch (e) { throw new Error(`${u}: expected data but received a web page or other text ("${t.slice(0, 30).replace(/\s+/g, ' ')}…")`); } });
+const showLoadError = (where, e) => { const p = document.createElement('p'); p.style.cssText = 'padding:12px;color:#a33'; p.textContent = 'The data could not be loaded. ' + e.message; where(p); console.error(e); };
+Promise.all(['data/kaza_projects.geojson', 'data/tables.json', 'data/map_layers.json', 'data/meta.json'].map(getJSON))
+.then(([GJ, TB, ML, META]) => {
+  const $ = id => document.getElementById(id);
+  const split = s => (s || '').split('; ').filter(Boolean);
+  const fmtUSD = v => v >= 1e9 ? (v / 1e9).toFixed(1) + ' bn' : v >= 1e6 ? (v / 1e6).toFixed(1) + ' m' : v >= 1e3 ? Math.round(v / 1e3) + ' k' : String(Math.round(v || 0));
+  const esc = s => String(s ?? '');
+
+  // d3 wants exterior rings clockwise; GeoJSON files use the opposite order. Flip any polygon that reads as inside out.
+  function rewind(geom) {
+    if (!geom) return geom;
+    const polys = geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates;
+    const fixed = polys.map(p => d3.geoArea({type: 'Polygon', coordinates: p}) > 2 * Math.PI ? p.map(r => r.slice().reverse()) : p);
+    return {type: 'MultiPolygon', coordinates: fixed};
+  }
+  const P = GJ.features.map(f => ({...f.properties, type: 'Feature', geometry: rewind(f.geometry)}));  // kept as GeoJSON features so d3 can draw them
+  P.forEach(p => { p._themes = split(p.themes); p._countries = split(p.countries); p._wdas = split(p.wdas).filter(w => w !== 'Outside WDAs');
+    p._funders = split(p.funders); p._partners = split(p.primary_partners).concat(split(p.local_partners));
+    p._area = p.geometry ? d3.geoArea(p.geometry) : 0;
+    p._bb = p.geometry ? d3.geoBounds(p) : null;
+    p._q = [p.title, p.lead_org, p.funders, p.donors, p.primary_partners, p.local_partners, p.areas].join(' ').toLowerCase(); });
+  const byId = new Map(P.map(p => [p.project_id, p]));
+  // WWF supporting colours (browns and the base colour left out: too close to the map background)
+  const PALETTE = ['#DA1D52', '#F07D00', '#00728F', '#8CC63F', '#812990', '#009191', '#F5D200', '#9A0064', '#007932', '#7B8427'];
+  const projColour = p => PALETTE[(+p.project_id.replace(/\D/g, '') * 7) % PALETTE.length];
+  const areas = P.filter(p => p._area > 0).map(p => Math.log(p._area));
+  const aMin = Math.min(...areas), aMax = Math.max(...areas);
+  const sizeOpacity = (a, lo, hi) => { if (!a) return lo; const s = (Math.log(a) - aMin) / ((aMax - aMin) || 1); return +(hi - (hi - lo) * Math.pow(s, 0.35)).toFixed(3); };
+  $('updated').textContent = `Last updated ${META.updated}.`;
+
+  // ---------- filters ----------
+  const F = {st: 'Active', country: '', wda: '', theme: '', funder: '', org: '', q: ''};
+  const counts = (key) => { const m = new Map(); P.forEach(p => p[key].forEach(v => m.set(v, (m.get(v) || 0) + 1))); return [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])); };
+  function fillSelect(id, label, key, sortAlpha) {
+    const s = $(id); s.replaceChildren(new Option(label, ''));
+    let items = counts(key); if (sortAlpha) items.sort((a, b) => a[0].localeCompare(b[0]));
+    items.forEach(([v, n]) => s.append(new Option(`${v} (${n})`, v)));
+  }
+  fillSelect('f-country', 'All countries', '_countries', true);
+  fillSelect('f-wda', 'All WDAs', '_wdas', true);
+  fillSelect('f-theme', 'All themes', '_themes');
+  fillSelect('f-funder', 'All funders', '_funders');
+  fillSelect('f-org', 'All partners', '_partners', true);
+  const SEL = {country: 'f-country', wda: 'f-wda', theme: 'f-theme', funder: 'f-funder', org: 'f-org'};
+  Object.entries(SEL).forEach(([k, id]) => $(id).onchange = e => { F[k] = e.target.value; update(); });
+  $('f-q').oninput = e => { F.q = e.target.value.trim().toLowerCase(); update(); };
+  document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { F.st = b.dataset.st; update(); });
+  $('reset').onclick = () => { Object.assign(F, {st: '', country: '', wda: '', theme: '', funder: '', org: '', q: ''}); $('f-q').value = ''; update(); };
+  function setFilter(k, v) { F[k] = F[k] === v ? '' : v; update(); }
+  const keep = p => (!F.st || p.status === F.st) && (!F.country || p._countries.includes(F.country)) && (!F.wda || p._wdas.includes(F.wda))
+    && (!F.theme || p._themes.includes(F.theme)) && (!F.funder || p._funders.includes(F.funder)) && (!F.org || p._partners.includes(F.org))
+    && (!F.q || p._q.includes(F.q));
+
+  // ---------- map ----------
+  const svg = d3.select('#map'), g = svg.append('g'), proj = d3.geoMercator(), path = d3.geoPath(proj);
+  const kaza = {type: 'Feature', geometry: rewind(ML.kaza)};
+  const gFoot = g.append('g');
+  g.append('g').selectAll('path').data(ML.countries.map(c => ({type: 'Feature', geometry: rewind(c.geometry), properties: c}))).join('path').attr('class', 'country');
+  g.append('g').selectAll('path').data(ML.wdas.map(w => ({type: 'Feature', geometry: rewind(w.geometry), properties: w}))).join('path').attr('class', 'wda');
+  g.append('path').datum(kaza).attr('class', 'kaza');
+  const gHl = g.append('g');
+  function fit() {
+    const r = svg.node().getBoundingClientRect();
+    svg.attr('viewBox', `0 0 ${r.width} ${r.height}`);
+    proj.fitExtent([[14, 14], [r.width - 14, r.height - 14]], kaza);
+    g.selectAll('path').attr('d', path);
+  }
+  const zoom = d3.zoom().scaleExtent([1, 40]).on('zoom', e => { g.attr('transform', e.transform); $('pop').hidden = true; });
+  svg.call(zoom).on('dblclick.zoom', null);
+  $('zin').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1.8);
+  $('zout').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.8);
+  $('zreset').onclick = () => svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
+  let shown = [];
+  // projects (of those shown) under a mouse position; a quick bounding-box check first keeps this fast enough for hovering
+  function hitsAt(e) {
+    const t = d3.zoomTransform(svg.node()); const [x, y] = t.invert(d3.pointer(e, svg.node())); const ll = proj.invert([x, y]);
+    return shown.filter(p => p._bb && ll[0] >= p._bb[0][0] && ll[0] <= p._bb[1][0] && ll[1] >= p._bb[0][1] && ll[1] <= p._bb[1][1]
+      && d3.geoContains(p.geometry, ll)).sort((a, b) => a._area - b._area);
+  }
+  // hover (mouse only, not touch): how many projects are under the pointer
+  let hoverFrame = null;
+  if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
+    svg.on('mousemove', e => {
+      if (e.buttons) { hideTip(); return; }                 // dragging the map
+      if (hoverFrame) cancelAnimationFrame(hoverFrame);
+      hoverFrame = requestAnimationFrame(() => {
+        const n = hitsAt(e).length;
+        const filtered = Object.entries(F).some(([k, v]) => v && k !== 'st') || F.st !== '';
+        showTip(e, n ? `${n} project${n === 1 ? '' : 's'} here` : 'No projects here',
+          (filtered ? 'With the current filters. ' : '') + (n ? 'Click to see them.' : ''));
+      });
+    }).on('mouseleave', () => { if (hoverFrame) cancelAnimationFrame(hoverFrame); hideTip(); });
+  }
+  svg.on('click', e => {
+    hideTip();
+    const hits = hitsAt(e);
+    const pop = $('pop'); pop.replaceChildren();
+    if (!hits.length) { pop.hidden = true; return; }
+    const h = document.createElement('h3'); h.textContent = `${hits.length} project${hits.length > 1 ? 's' : ''} at this place · drag to move`; h.onclick = ev => ev.stopPropagation(); pop.append(h);
+    hits.slice(0, 40).forEach(p => { const b = document.createElement('button'); b.type = 'button'; b.textContent = p.title; b.onmouseenter = () => highlight(p); b.onclick = ev => { ev.stopPropagation(); open(p); }; pop.append(b); });
+    const box = svg.node().getBoundingClientRect(); const [px, py] = d3.pointer(e, svg.node());
+    pop.hidden = false; pop.style.height = ''; if (pop.offsetHeight > 300) pop.style.height = '300px';
+    pop.style.left = Math.min(px + 10, box.width - 300) + 'px'; pop.style.top = Math.min(py + 40, box.height - 160) + 'px';
+    draggable(h, pop, pop.parentElement);
+  });
+  function highlight(p) {
+    gHl.selectAll('path').data(p && p.geometry ? [p] : []).join('path').attr('class', 'foot hl').attr('d', path).style('pointer-events', 'none');
+    document.querySelectorAll('.item').forEach(el => el.classList.toggle('hl', p && el.dataset.id === p.project_id));
+  }
+
+  // ---------- tooltip ----------
+  const tip = $('tip');
+  function showTip(e, title, sub) { tip.replaceChildren(); const b = document.createElement('b'); b.textContent = title; const s = document.createElement('span'); s.textContent = sub; tip.append(b, s); tip.hidden = false;
+    tip.style.left = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; }
+  const hideTip = () => tip.hidden = true;
+
+  // ---------- charts ----------
+  function bars(id, key, filterKey, top, all) {
+    const m = new Map(); shown.forEach(p => p[key].forEach(v => m.set(v, (m.get(v) || 0) + 1)));
+    let items = [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    if (all) all.forEach(v => { if (!m.has(v)) items.push([v, 0]); });
+    if (top) items = items.slice(0, top);
+    const max = d3.max(items, d => d[1]) || 1; const el = $(id); el.replaceChildren();
+    if (!items.length) { el.textContent = 'No projects match the filters.'; return; }
+    items.forEach(([v, n]) => {
+      const lab = document.createElement('button'); lab.type = 'button'; lab.className = 'lab'; lab.textContent = v; lab.title = `Filter: ${v}`;
+      const bar = document.createElement('div'); bar.className = 'bar' + (F[filterKey] === v ? ' on' : (F[filterKey] ? ' dim' : ''));
+      const i = document.createElement('i'); i.style.width = (n / max * 82) + '%'; const em = document.createElement('em'); em.textContent = n;
+      bar.append(i, em);
+      const act = () => setFilter(filterKey, v);
+      lab.onclick = act; bar.onclick = act;
+      bar.onmousemove = e => showTip(e, v, `${n} project${n === 1 ? '' : 's'} · ${Math.round(n / shown.length * 100)}% of those shown · click to filter`); bar.onmouseleave = hideTip;
+      el.append(lab, bar);
+    });
+  }
+  function years() {
+    const ys = shown.map(p => p.start_date ? +p.start_date.slice(0, 4) : null).filter(Boolean);
+    const el = $('c-year'), ex = $('c-year-x'); el.replaceChildren(); ex.replaceChildren();
+    if (!ys.length) return;
+    const y0 = Math.max(d3.min(ys), 2005), y1 = Math.max(d3.max(ys), new Date().getFullYear());
+    const m = d3.rollup(ys.map(y => Math.max(y, y0)), v => v.length, d => d); const max = d3.max(m.values());
+    for (let y = y0; y <= y1; y++) { const n = m.get(y) || 0; const d = document.createElement('div'); d.style.height = (n / max * 100) + '%';
+      d.onmousemove = e => showTip(e, y === y0 && d3.min(ys) < y0 ? `${y} or earlier` : String(y), `${n} project${n === 1 ? '' : 's'} started`); d.onmouseleave = hideTip; el.append(d); }
+    [y0, Math.round((y0 + y1) / 2), y1].forEach(y => { const s = document.createElement('span'); s.textContent = y; ex.append(s); });
+  }
+
+  // ---------- list + detail ----------
+  function open(p) {
+    $('pop').hidden = true; highlight(p);
+    const b = $('dlg-body'); b.replaceChildren();
+    const h = document.createElement('h2'); h.textContent = p.title;
+    const st = document.createElement('span'); st.className = 'badge ' + p.status; st.textContent = p.status;
+    const dl = document.createElement('dl');
+    const row = (k, v) => { if (!v) return; const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v; dl.append(dt, dd); };
+    row('Lead organisation', p.lead_org);
+    row('Period', `${p.start_date || '?'} to ${p.end_date || 'ongoing / not given'}`);
+    row('Total budget', p.budget_usd ? 'USD ' + Math.round(p.budget_usd).toLocaleString('en') : 'Not disclosed');
+    row('Funders', p.donors);
+    row('Primary partners', p.primary_partners); row('Local partners', p.local_partners);
+    row('Themes', p.themes); row('Areas', p.areas); row('Countries', p.countries); row('WDAs', p.wdas);
+    row('Part of', p.larger_programme); row('Source', p.source); row('Project ID', p.project_id);
+    b.append(h, st, dl); showWin();
+  }
+  // ---- the details window: movable and resizable; its size and place are remembered in this browser ----
+  const win = $('dlg'), KEY = 'kaza_dash_window';
+  const small = () => innerWidth < 620;
+  function clampWin() {
+    const r = win.getBoundingClientRect();
+    win.style.left = Math.max(8, Math.min(r.left, innerWidth - 80)) + 'px';
+    win.style.top = Math.max(8, Math.min(r.top, innerHeight - 50)) + 'px';
+  }
+  function showWin() {
+    if (!win.open) {
+      win.show();
+      if (small()) { Object.assign(win.style, {left: '8px', top: '8px', width: (innerWidth - 16) + 'px', height: (innerHeight - 16) + 'px'}); }
+      else {
+        let s = null; try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+        if (s) Object.assign(win.style, {left: s.left, top: s.top, width: s.width, height: s.height});
+        else { win.style.left = Math.max(8, (innerWidth - win.offsetWidth) / 2) + 'px'; win.style.top = '90px'; }
+        clampWin();
+      }
+    }
+    win.scrollTop = 0; $('dlg-close').focus();
+  }
+  function saveWin() {
+    if (small() || !win.open) return;
+    try { localStorage.setItem(KEY, JSON.stringify({left: win.style.left, top: win.style.top, width: win.offsetWidth + 'px', height: win.offsetHeight + 'px'})); } catch (e) {}
+  }
+  $('dlg-close').onclick = () => win.close();
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && win.open) win.close(); });
+  new ResizeObserver(saveWin).observe(win);
+  function draggable(handle, box, within) {   // move 'box' by dragging 'handle'; 'within' = element it must stay inside (null = window)
+    handle.addEventListener('pointerdown', e => {
+      if (e.target.closest('button')) return;
+      e.preventDefault(); handle.setPointerCapture(e.pointerId);
+      const sx = e.clientX, sy = e.clientY, ox = box.offsetLeft, oy = box.offsetTop;
+      const move = ev => {
+        const W = within ? within.clientWidth : innerWidth, H = within ? within.clientHeight : innerHeight;
+        box.style.left = Math.max(0, Math.min(ox + ev.clientX - sx, W - 80)) + 'px';
+        box.style.top = Math.max(0, Math.min(oy + ev.clientY - sy, H - 40)) + 'px';
+      };
+      const up = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); if (box === win) saveWin(); };
+      handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up);
+    });
+  }
+  draggable($('dlg-bar'), win, null);
+  function list() {
+    const el = $('list'); el.replaceChildren();
+    shown.slice().sort((a, b) => (b.start_date || '').localeCompare(a.start_date || '')).forEach(p => {
+      const it = document.createElement('button'); it.type = 'button'; it.className = 'item'; it.dataset.id = p.project_id; it.setAttribute('role', 'listitem');
+      const t = document.createElement('b'); t.textContent = p.title;
+      const s = document.createElement('span'); const bd = document.createElement('i'); bd.className = 'badge ' + p.status; bd.style.fontStyle = 'normal'; bd.textContent = p.status;
+      s.append(bd, document.createTextNode([p.lead_org, p.countries, (p.start_date || '').slice(0, 4) + (p.end_date ? '–' + p.end_date.slice(0, 4) : '')].filter(Boolean).join(' · ')));
+      it.append(t, s); it.onmouseenter = () => highlight(p); it.onclick = () => open(p);
+      el.append(it);
+    });
+    $('list-n').textContent = `· ${shown.length}`;
+  }
+
+  // ---------- update everything ----------
+  function update() {
+    shown = P.filter(keep);
+    document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.st === F.st));
+    Object.entries(SEL).forEach(([k, id]) => { $(id).value = F[k]; $(id).classList.toggle('set', !!F[k]); });
+    gFoot.selectAll('path').data(shown.filter(p => p.geometry).sort((a, b) => b._area - a._area), d => d.project_id)
+      .join('path').attr('class', 'foot').attr('d', path).style('pointer-events', 'none');
+    // lighter shading when many projects are shown, so overlaps stay readable instead of turning solid
+    // Mock-up styling: every project its own colour (WWF supporting palette; colours carry no meaning, they only tell projects apart).
+    // Opacity follows size on a log scale: the smallest areas are almost solid and bright, whole-KAZA projects very faint.
+    gFoot.selectAll('path')
+      .style('fill', d => projColour(d)).style('stroke', d => projColour(d))
+      .style('fill-opacity', d => sizeOpacity(d._area, 0.03, 0.85))
+      .style('stroke-opacity', d => sizeOpacity(d._area, 0.35, 1));
+    $('k-proj').textContent = shown.length;
+    const soon = new Date(); soon.setFullYear(soon.getFullYear() + 1); const today = new Date().toISOString().slice(0, 10), lim = soon.toISOString().slice(0, 10);
+    $('k-end').textContent = shown.filter(p => p.end_date && p.end_date >= today && p.end_date <= lim).length;
+    const orgs = new Set(); shown.forEach(p => { p._funders.concat(p._partners).forEach(o => orgs.add(o)); if (p.lead_org) orgs.add(p.lead_org); });
+    $('k-org').textContent = orgs.size;
+    const withB = shown.filter(p => p.budget_usd); $('k-bud').textContent = fmtUSD(d3.sum(withB, p => p.budget_usd));
+    $('k-bud-l').textContent = `total budgets reported (USD), ${withB.length} of ${shown.length} projects`;
+    $('count').textContent = `${shown.length} of ${P.length} projects`;
+    bars('c-theme', '_themes', 'theme'); bars('c-wda', '_wdas', 'wda', 0, Object.values(TB.wda_names)); bars('c-country', '_countries', 'country');
+    bars('c-funder', '_funders', 'funder', 12); bars('c-org', '_partners', 'org', 12); years(); list(); highlight(null);
+  }
+  $('csv').onclick = () => {
+    const cols = ['project_id', 'title', 'lead_org', 'status', 'start_date', 'end_date', 'budget_usd', 'themes', 'donors', 'primary_partners', 'local_partners', 'areas', 'countries', 'wdas'];
+    const q = v => { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    const txt = [cols.join(',')].concat(shown.map(p => cols.map(c => q(p[c])).join(','))).join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + txt], {type: 'text/csv'})); a.download = 'kaza_projects.csv'; a.click();
+  };
+  $('rules').replaceChildren(...Object.entries(META.rules).map(([k, v]) => { const p = document.createElement('p'); p.textContent = `${k[0].toUpperCase() + k.slice(1)}: ${v}.`; return p; }));
+  fit(); update();
+  new ResizeObserver(() => fit()).observe(svg.node());
+}).catch(e => showLoadError(p => document.querySelector('.wrap').prepend(p), e));
+</script>
+</body>
+</html>
