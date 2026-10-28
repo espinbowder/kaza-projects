@@ -20,7 +20,8 @@ jobs:
     steps:
       - name: Get the repository
         uses: actions/checkout@v5
-
+        with:
+          ref: main        # always the latest version, also when an older run is re-run
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -43,5 +44,6 @@ jobs:
             echo "No changes."
           else
             git commit -m "Update project data $(date -u +%Y-%m-%d)"
+            git pull --rebase -X theirs origin main  
             git push
           fi
