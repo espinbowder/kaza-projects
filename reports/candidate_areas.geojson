@@ -1,1 +1,1 @@
-{"type": "FeatureCollection", "features": []}
+{"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {"area_id": "K902695687-A1", "project_id": "K902695687", "name": "Mazola", "country": "zimbabwe", "how": "drawn"}, "geometry": {"type": "Polygon", "coordinates": [[[27.481786, -18.470695], [27.479056, -18.444642], [27.485616, -18.44221], [27.508988, -18.454911], [27.510864, -18.462564], [27.502957, -18.465983], [27.497285, -18.463867], [27.492301, -18.467774], [27.487317, -18.470705], [27.481786, -18.470695]]]}}]}
