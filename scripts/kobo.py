@@ -3,7 +3,7 @@
 Only the standard library is used. The API key comes from the KOBO_TOKEN environment variable
 (a GitHub secret), never from a file in the repository.
 """
-import json, os, re, urllib.parse, urllib.request
+import base64, json, os, re, urllib.parse, urllib.request
 from kazageo import parse_odk_geoshape, read_shape_file
 
 # Organisations that pass German Government money on. When one of them is entered as the funder,
@@ -55,6 +55,41 @@ def _num(v):
 
 def _norm_file(name):
     return re.sub(r'[^a-z0-9.]+', '_', os.path.basename(str(name or '')).lower())
+
+
+# ---------- the location code from the map picker ----------
+# "KAZA-LOC1 | <summary> | <data>": data is base64url JSON {v, k, w, a, d, s:[{n, h, p:[encoded rings]}]};
+# rings are encoded polylines in [lon, lat] order with precision 1e-4 degrees (see docs/picker.html).
+def _decode_ring(s, prec=1e4):
+    pts, i, x, y = [], 0, 0, 0
+    while i < len(s):
+        vals = []
+        for _ in range(2):
+            shift = result = 0
+            while True:
+                b = ord(s[i]) - 63; i += 1
+                result |= (b & 0x1f) << shift; shift += 5
+                if b < 0x20: break
+            vals.append(~(result >> 1) if result & 1 else result >> 1)
+        x += vals[0]; y += vals[1]
+        pts.append([x / prec, y / prec])
+    if pts and pts[0] != pts[-1]: pts.append(pts[0])
+    return pts
+
+
+def decode_location_code(text):
+    """Returns the decoded dict, or None when there is no code; raises ValueError when the code is damaged."""
+    text = (text or '').strip()
+    if not text: return None
+    if not text.startswith('KAZA-LOC1'): raise ValueError('does not start with KAZA-LOC1')
+    data = re.sub(r'\s+', '', text.rsplit('|', 1)[-1])
+    try:
+        o = json.loads(base64.urlsafe_b64decode(data + '=' * (-len(data) % 4)).decode('utf-8'))
+        for s in o.get('s', []):
+            s['rings'] = [_decode_ring(r) for r in s.get('p', [])]
+    except Exception as e:
+        raise ValueError(f'the code is incomplete or damaged ({e.__class__.__name__}); it may have been cut off when copying')
+    return o
 
 
 def to_tables(submissions, orgs, areas, server=None, token=None, fetch_files=True):
@@ -111,18 +146,47 @@ def to_tables(submissions, orgs, areas, server=None, token=None, fetch_files=Tru
                 flag(pid, 'German channel entered as funder', f'{GERMAN_CHANNELS[fid]} recorded as channel of German Government')
                 ch, fid = fid, GERMAN_GOV
             if ch and ch == fid: flag(pid, 'Funder and channel are the same', orgs.get(fid, fid)); ch = ''
+            # amount: "All of it" = the whole project budget; "Part of it" = the amount typed; "Not known" = blank
+            share = f.get('fund_share') or ''
+            if share == 'all':
+                amount, basis = T['projects'][-1]['total_budget_usd'], 'Whole budget (answered "All of it")'
+            elif share == 'unknown':
+                amount, basis = None, 'Not known or not shared'
+            else:
+                amount, basis = _num(f.get('fund_amount')), 'Reported in the survey'
             T['funding'].append({'project_id': pid, 'funder_id': fid if fid not in ('other', 'undisclosed') else '',
                                  'funder_name': oname(fid, f.get('funder_oth')), 'channel': oname(ch, f.get('channel_oth')) if ch else '',
-                                 'amount_usd': _num(f.get('fund_amount')), 'type': f.get('fund_type') or '', 'basis': 'Reported in the survey'})
+                                 'amount_usd': amount, 'type': f.get('fund_type') or '', 'basis': basis})
             if fid == 'other': flag(pid, 'New organisation', f'funder: {f.get("funder_oth")}')
             if ch == 'other': flag(pid, 'New organisation', f'channel: {f.get("channel_oth")}')
         fsum = sum(x['amount_usd'] or 0 for x in T['funding'] if x['project_id'] == pid)
         b = T['projects'][-1]['total_budget_usd']
         if b and fsum > b * 1.001: flag(pid, 'Funding exceeds total budget', f'{fsum:,.0f} > {b:,.0f}')
+        n_all = sum(1 for f in s.get('funding') or [] if f.get('fund_share') == 'all')
+        if n_all > 1: flag(pid, 'Several funders give "all of the budget"', f'{n_all} funders answered "All of it"')
         if b and b > 100_000_000: flag(pid, 'Very large budget', f'{b:,.0f}')
 
-        # ---- locations ----
-        if s.get('whole_kaza') == 'yes':
+        # ---- locations: the code from the map picker, or (without the map) the list questions ----
+        try:
+            code = decode_location_code(s.get('loc_code'))
+        except ValueError as e:
+            code = None; flag(pid, 'Location code could not be read', str(e))
+        if code is not None:
+            if code.get('k'):
+                T['project_areas'].append({'project_id': pid, 'area_id': 'KAZA'})
+            else:
+                for a in code.get('w', []) + code.get('a', []) + code.get('d', []):
+                    T['project_areas'].append({'project_id': pid, 'area_id': a})
+                    if a not in areas and not a.startswith('W_'): flag(pid, 'Unknown area ID', a)
+                for i, sh in enumerate(code.get('s', []), 1):
+                    nid = f'{pid}-M{i}'
+                    geom = {'type': 'MultiPolygon', 'coordinates': [[r] for r in sh['rings'] if len(r) >= 4]}
+                    how = 'drawn on the map' if sh.get('h') == 'drawn' else (sh.get('h') or 'map').replace('file ', 'uploaded file ')
+                    T['new_areas'].append({'area_id': nid, 'project_id': pid, 'name': sh.get('n') or 'unnamed', 'country': '',
+                                           'description': '', 'how': how, 'geometry': geom if geom['coordinates'] else None})
+                    T['project_areas'].append({'project_id': pid, 'area_id': nid})
+                    flag(pid, 'New area to review', f'{sh.get("n") or "unnamed"} ({how})')
+        elif s.get('whole_kaza') == 'yes':
             T['project_areas'].append({'project_id': pid, 'area_id': 'KAZA'})
         else:
             for w in _multi(s.get('loc_wdas')): T['project_areas'].append({'project_id': pid, 'area_id': w})
