@@ -4,61 +4,69 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>KAZA Area Picker</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: map on the left, the selection "basket" on the right; stacks at phone width with the basket below. */
 :root {
-  --bg: #f4f6f2;
+  /* WWF brand. Principal colours: black and white. Supporting colours (WWF palette), used sparingly:
+     Green #007932 = data, Orange #F07D00 = selection, Blue #00728F = WDA outlines; dark mode uses
+     Medium-green #8CC63F, Yellow #F5D200 and Aqua #009191.
+     Font: WWF alternate font. To change it, edit --font-ui below. */
+  --bg: #f5f5f3;
   --panel: #ffffff;
-  --ink: #1d2a24;
-  --muted: #5d6b63;
-  --line: #d6ddd6;
-  --water: #f7f8f5;
-  --accent: #1f6a55;        /* KAZA green: buttons, focus */
-  --pick: #d38a1f;          /* ochre: selected areas */
-  --pick-ink: #7a4a05;
-  --area: #c7d8c2;
-  --area-line: #6f8a78;
-  --wda-line: #2f5d50;
-  --hover: #f3d9ac;
-  --font-ui: "Figtree", "Segoe UI", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --ink: #000000;
+  --muted: #555555;
+  --line: #dddddd;
+  --water: #fbfbfa;
+  --brand: #000000; --on-brand: #ffffff;   /* buttons */
+  --accent: #007932;        /* WWF Green */
+  --pick: #f07d00;          /* WWF Orange: selected areas */
+  --pick-ink: #8a4500;
+  --area: #d6e8da;
+  --area-line: #5f8a6a;
+  --wda-line: #00728f;      /* WWF Blue */
+  --hover: #fde8d2;
+  --warn: #b3261e;
+  --font-ui: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --r: 8px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #121815; --panel: #1a221e; --ink: #e5ece7; --muted: #9aaba1; --line: #2e3a34; --water: #0f1512;
-    --accent: #5fbf9f; --pick: #e8a23c; --pick-ink: #f4c27a; --area: #2a3a32; --area-line: #4f6b5c; --wda-line: #8fd1b8; --hover: #5a4521;
+    --bg: #000000; --panel: #141414; --ink: #ffffff; --muted: #b0b0b0; --line: #333333; --water: #0a0a0a; --brand: #ffffff; --on-brand: #000000;
+    --accent: #8cc63f; --pick: #f5d200; --pick-ink: #f5d200; --area: #1f2d22; --area-line: #4d6b52; --wda-line: #009191; --hover: #4a3a00; --warn: #ff8a80;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #121815; --panel: #1a221e; --ink: #e5ece7; --muted: #9aaba1; --line: #2e3a34; --water: #16201b;
-  --accent: #5fbf9f; --pick: #e8a23c; --pick-ink: #f4c27a; --area: #2a3a32; --area-line: #4f6b5c; --wda-line: #8fd1b8; --hover: #5a4521;
+  --bg: #000000; --panel: #141414; --ink: #ffffff; --muted: #b0b0b0; --line: #333333; --water: #0a0a0a; --brand: #ffffff; --on-brand: #000000;
+  --accent: #8cc63f; --pick: #f5d200; --pick-ink: #f5d200; --area: #1f2d22; --area-line: #4d6b52; --wda-line: #009191; --hover: #4a3a00; --warn: #ff8a80;
   color-scheme: dark;
 }
+[hidden] { display: none !important; }
 html, body { height: 100%; }
-body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 15px; line-height: 1.45; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 15px; line-height: 1.45; }
 .wrap { max-width: 1280px; margin: 0 auto; padding-block: 18px 28px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 14px; }
 header h1 { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
-header p { margin: 4px 0 0; color: var(--muted); max-width: 70ch; }
+header p { margin: 4px 0 0; color: var(--muted); max-width: 78ch; }
 .steps { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 10px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: .9rem; }
 .steps b { color: var(--ink); font-weight: 600; }
-.main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; align-items: start; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 14px; align-items: start; }
 @media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
 .mapbox { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); position: relative; overflow: hidden; min-width: 0; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); }
-.toolbar input[type=search] { flex: 1 1 220px; min-width: 0; font: inherit; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+.toolbar input[type=search] { flex: 1 1 200px; min-width: 0; font: inherit; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
 .seg button { font: inherit; font-size: .88rem; padding: 6px 10px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
-.seg button[aria-pressed="true"] { background: var(--accent); color: var(--panel); }
+.seg button[aria-pressed="true"] { background: var(--brand); color: var(--on-brand); }
+.upload { font: inherit; font-size: .88rem; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--ink); cursor: pointer; }
+.upload:hover { background: var(--hover); }
 .results { position: absolute; z-index: 5; left: 12px; right: 12px; top: 54px; max-height: 260px; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
 .results button { display: flex; width: 100%; gap: 8px; justify-content: space-between; text-align: left; font: inherit; font-size: .9rem; padding: 7px 10px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
 .results button:hover, .results button:focus-visible { background: var(--hover); outline: none; }
 .results small { color: var(--muted); white-space: nowrap; }
-svg.map { display: block; width: 100%; height: min(68vh, 640px); background: var(--water); touch-action: none; cursor: grab; }
+svg.map { display: block; width: 100%; height: min(70vh, 660px); background: var(--water); touch-action: none; cursor: grab; }
 svg.map:active { cursor: grabbing; }
+svg.map.mode-draw { cursor: crosshair; }
 .kaza { fill: none; stroke: var(--ink); stroke-width: 1.2; vector-effect: non-scaling-stroke; opacity: .55; }
 .wda { fill: none; stroke: var(--wda-line); stroke-width: 1.6; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
 .wda.on { fill: var(--pick); fill-opacity: .28; stroke: var(--pick); stroke-dasharray: none; stroke-width: 2.2; }
@@ -75,6 +83,20 @@ svg.map:active { cursor: grabbing; }
 .mode-dist .wda { opacity: .5; }
 .mode-wda .wda { pointer-events: visiblePainted; fill: transparent; cursor: pointer; }
 .mode-wda .wda:hover { fill: var(--hover); fill-opacity: .35; }
+.mode-draw .area, .mode-draw .dist, .mode-draw .wda { pointer-events: none; }
+.shape { fill: var(--pick); fill-opacity: .35; stroke: var(--pick-ink); stroke-width: 2; stroke-dasharray: 6 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+.draft-line { fill: none; stroke: var(--pick-ink); stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
+.draft-fill { fill: var(--pick); fill-opacity: .2; stroke: none; pointer-events: none; }
+.vtx { fill: var(--panel); stroke: var(--pick-ink); stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
+.drawbar { position: absolute; z-index: 4; left: 12px; top: 64px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; max-width: calc(100% - 80px);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; box-shadow: 0 6px 18px rgba(0,0,0,.14); font-size: .88rem; }
+.drawbar span { color: var(--muted); margin-right: 4px; }
+.drawbar button { font: inherit; font-size: .85rem; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }
+.drawbar button.primary { background: var(--brand); color: var(--on-brand); border-color: var(--brand); }
+.drawbar button:disabled { opacity: .45; cursor: default; }
+.notice { position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); bottom: 54px; max-width: min(520px, calc(100% - 24px)); background: var(--ink); color: var(--panel);
+  border-radius: 8px; padding: 9px 12px; font-size: .88rem; box-shadow: 0 6px 18px rgba(0,0,0,.2); }
+.notice.err { background: var(--warn); color: #fff; }
 .zoom { position: absolute; right: 10px; bottom: 50px; display: grid; gap: 4px; }
 .zoom button { width: 34px; height: 34px; font: inherit; font-size: 1.1rem; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }
 .tip { position: absolute; pointer-events: none; z-index: 6; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; font-size: .85rem; box-shadow: 0 6px 18px rgba(0,0,0,.14); max-width: 260px; }
@@ -87,25 +109,30 @@ aside h2 { margin: 0; font-size: 1rem; font-weight: 600; }
 .check { display: flex; gap: 8px; align-items: flex-start; font-size: .92rem; cursor: pointer; }
 .check input { margin-top: 3px; accent-color: var(--accent); }
 .count { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 500; }
-.basket { display: grid; gap: 6px; max-height: 300px; overflow: auto; }
+.basket { display: grid; gap: 6px; max-height: 320px; overflow: auto; }
 .empty { color: var(--muted); font-size: .9rem; border: 1px dashed var(--line); border-radius: 6px; padding: 12px; }
 .chip { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; padding: 7px 9px; border-radius: 6px; background: var(--bg); border: 1px solid var(--line); }
+.chip.shapechip { border-style: dashed; border-color: var(--pick-ink); }
 .chip .nm { font-weight: 600; font-size: .9rem; min-width: 0; overflow-wrap: anywhere; }
+.chip input.nm { font: inherit; font-weight: 600; font-size: .9rem; border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; background: var(--panel); color: var(--ink); width: 100%; box-sizing: border-box; }
 .chip .meta { grid-column: 1; color: var(--muted); font-size: .78rem; }
+.chip .meta a { color: inherit; }
 .chip .id { font-family: var(--font-mono); font-size: .74rem; }
 .chip button { grid-row: 1 / span 2; grid-column: 2; font: inherit; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 1.1rem; padding: 2px 6px; border-radius: 4px; }
 .chip button:hover { color: var(--ink); background: var(--hover); }
 .go { display: grid; gap: 8px; }
-.go a.btn { display: block; text-align: center; text-decoration: none; font-weight: 600; padding: 11px 12px; border-radius: 6px; background: var(--accent); color: var(--panel); }
-.go a.btn[aria-disabled="true"] { background: var(--line); color: var(--muted); pointer-events: none; }
+.btn { display: block; width: 100%; text-align: center; text-decoration: none; font: inherit; font-weight: 600; padding: 11px 12px; border-radius: 6px; border: 1px solid var(--brand); background: var(--brand); color: var(--on-brand); cursor: pointer; box-sizing: border-box; }
+.btn.secondary { background: transparent; color: var(--ink); border-color: var(--line); font-weight: 500; padding: 8px 12px; }
+.btn[aria-disabled="true"] { background: var(--line); border-color: var(--line); color: var(--muted); pointer-events: none; }
 .go small { color: var(--muted); font-size: .8rem; }
+textarea.code { width: 100%; box-sizing: border-box; height: 64px; resize: vertical; font-family: var(--font-mono); font-size: .72rem; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: var(--bg); color: var(--ink); }
+.restart { font: inherit; font-size: .82rem; color: var(--muted); background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; justify-self: start; }
 details { font-size: .88rem; }
 details summary { cursor: pointer; color: var(--muted); }
 details label { display: block; margin: 8px 0 4px; color: var(--muted); font-size: .82rem; }
 details input { width: 100%; box-sizing: border-box; font: inherit; font-size: .85rem; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
 .url { font-family: var(--font-mono); font-size: .74rem; word-break: break-all; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; max-height: 120px; overflow: auto; }
-.linkbtn { font: inherit; font-size: .82rem; border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 6px; padding: 5px 9px; cursor: pointer; justify-self: start; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--pick); outline-offset: 2px; }
 @media (prefers-reduced-motion: no-preference) { .area, .wda { transition: fill .12s ease; } }
 </style>
 </head>
@@ -114,8 +141,8 @@ details input { width: 100%; box-sizing: border-box; font: inherit; font-size: .
 <div class="wrap">
   <header>
     <h1>Where does your project work?</h1>
-    <p>Click the areas on the map where your project is active. Click again to remove an area. When you are done, continue to the KAZA projects survey: the areas you chose are filled in for you.</p>
-    <ul class="steps"><li><b>1</b> Zoom and click areas</li><li><b>2</b> Or choose whole districts, whole WDAs or the whole of KAZA</li><li><b>3</b> Continue to the survey</li></ul>
+    <p id="intro">Choose the areas on the map where your project is active, or draw or upload areas that are not on the map. When you are done, continue to the KAZA projects survey: your locations are filled in for you.</p>
+    <ul class="steps" id="steps"><li><b>1</b> Click areas, districts or whole WDAs</li><li><b>2</b> Draw or upload areas that are not on the map</li><li><b>3</b> Continue to the survey</li></ul>
   </header>
 
   <div class="main">
@@ -126,15 +153,26 @@ details input { width: 100%; box-sizing: border-box; font: inherit; font-size: .
           <button id="m-area" aria-pressed="true">Areas</button>
           <button id="m-dist" aria-pressed="false">Districts</button>
           <button id="m-wda" aria-pressed="false">Whole WDAs</button>
+          <button id="m-draw" aria-pressed="false">Draw</button>
         </div>
+        <label class="upload" for="file" title="GeoJSON, KML/KMZ or a zipped shapefile">Upload a file</label>
+        <input type="file" id="file" accept=".geojson,.json,.kml,.kmz,.zip" hidden multiple>
       </div>
       <div class="results" id="results" hidden></div>
+      <div class="drawbar" id="drawbar" hidden>
+        <span id="drawhint">Click on the map to add corner points.</span>
+        <button type="button" id="d-finish" class="primary" disabled>Finish shape</button>
+        <button type="button" id="d-undo" disabled>Undo point</button>
+        <button type="button" id="d-cancel">Cancel</button>
+      </div>
       <svg class="map" id="map" role="img" aria-label="Clickable map of conservation areas in the KAZA TFCA"></svg>
       <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zreset" aria-label="Show all of KAZA">⤢</button></div>
       <div class="tip" id="tip" hidden></div>
+      <div class="notice" id="notice" role="status" hidden></div>
       <div class="legend">
         <span><i style="background:var(--area);border:1px solid var(--area-line)"></i>Area you can select</span>
         <span><i style="background:var(--pick)"></i>Selected</span>
+        <span><i style="background:var(--pick);opacity:.5;border:1.5px dashed var(--pick-ink)"></i>Drawn or uploaded</span>
         <span><i style="border:1.5px dashed var(--wda-line)"></i>Wildlife Dispersal Area (WDA)</span>
         <span><i style="border:1.5px solid var(--ink);opacity:.6"></i>KAZA boundary</span>
       </div>
@@ -143,12 +181,16 @@ details input { width: 100%; box-sizing: border-box; font: inherit; font-size: .
     <aside>
       <label class="check"><input type="checkbox" id="wholekaza"> <span><b>The project covers the whole of KAZA</b><br><span class="count">No need to select areas</span></span></label>
       <div>
-        <h2>Your selection <span class="count" id="n">0 areas</span></h2>
+        <h2>Your locations <span class="count" id="n">· nothing yet</span></h2>
       </div>
       <div class="basket" id="basket"></div>
-      <div class="go">
+      <div class="go" id="go-box">
+        <button type="button" class="btn" id="copycode" aria-disabled="true">Copy location code</button>
         <a class="btn" id="go" href="#" target="_blank" rel="noopener" aria-disabled="true">Continue to the survey</a>
-        <small id="gohint">Select at least one area, district or WDA, or tick “whole of KAZA”.</small>
+        <small id="gohint"></small>
+        <label for="code" class="count" style="font-size:.8rem">Location code</label>
+        <textarea class="code" id="code" readonly aria-label="Location code"></textarea>
+        <button type="button" class="restart" id="restart">Start again (clear everything)</button>
       </div>
       <details id="setup">
         <summary>Survey link (for the KAZA team)</summary>
@@ -157,28 +199,150 @@ details input { width: 100%; box-sizing: border-box; font: inherit; font-size: .
         <p class="count" style="font-size:12.5px">The address saved in <code>docs/site.json</code> is used for everyone; a value typed here only changes it in your own browser, for testing.</p>
         <label>Link that will open</label>
         <div class="url" id="url">—</div>
-        <button class="linkbtn" id="copy" type="button">Copy link</button>
       </details>
     </aside>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-Promise.all([fetch('data/picker_areas.json').then(r => r.json()), fetch('site.json').then(r => r.json()).catch(() => ({}))]).then(([DATA, SITE]) => {
+// Load a data file; if it fails, say which file and why (shown on the page and in the browser console).
+const getJSON = u => fetch(u, {cache: 'no-cache'}).then(r => {
+  if (!r.ok) throw new Error(`${u}: the server answered ${r.status} ${r.statusText}`);
+  return r.text();
+}).then(t => { try { return JSON.parse(t); } catch (e) { throw new Error(`${u}: expected data but received a web page or other text ("${t.slice(0, 30).replace(/\s+/g, ' ')}…")`); } });
+const showLoadError = (where, e) => { const p = document.createElement('p'); p.style.cssText = 'padding:12px;color:#a33'; p.textContent = 'The data could not be loaded. ' + e.message; where(p); console.error(e); };
+
+// ---------------- the location code ----------------
+// "KAZA-LOC1 | <readable summary> | <data>". The data part is base64url-encoded JSON:
+// {v:1, k:1 (whole KAZA), w:[WDA ids], a:[area ids], d:[district ids], s:[{n:name, h:how, p:[ring, ...]}]}
+// Each ring is an encoded polyline (Google algorithm, [lon, lat] order, precision 1e-4 degrees ≈ 11 m).
+const LOC = {
+  PREC: 1e4,
+  encNum(v) { v = v < 0 ? ~(v << 1) : (v << 1); let s = ''; while (v >= 0x20) { s += String.fromCharCode((0x20 | (v & 0x1f)) + 63); v >>= 5; } return s + String.fromCharCode(v + 63); },
+  encRing(r) { let out = '', px = 0, py = 0; for (const [x, y] of r) { const ix = Math.round(x * this.PREC), iy = Math.round(y * this.PREC); out += this.encNum(ix - px) + this.encNum(iy - py); px = ix; py = iy; } return out; },
+  b64(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); },
+};
+// Simplify a ring (Douglas-Peucker) to about 100 m: 0.0009 degrees
+function simplifyRing(pts, tol = 0.0009) {
+  if (pts.length < 5) return pts;
+  const keep = new Uint8Array(pts.length); keep[0] = keep[pts.length - 1] = 1; const stack = [[0, pts.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop(); if (b <= a + 1) continue;
+    const [px, py] = pts[a], [qx, qy] = pts[b], dx = qx - px, dy = qy - py, L = Math.hypot(dx, dy);
+    let best = -1, bi = -1;
+    for (let i = a + 1; i < b; i++) { const d = L > 0 ? Math.abs(dx * (pts[i][1] - py) - dy * (pts[i][0] - px)) / L : Math.hypot(pts[i][0] - px, pts[i][1] - py); if (d > best) { best = d; bi = i; } }
+    if (best > tol) { keep[bi] = 1; stack.push([a, bi], [bi, b]); }
+  }
+  const out = pts.filter((p, i) => keep[i]);
+  return out.length >= 4 ? out : pts;
+}
+const closeRing = r => { const a = r[0], b = r[r.length - 1]; return (a[0] === b[0] && a[1] === b[1]) ? r : r.concat([a]); };
+const fromMercator = ([x, y]) => [x / 6378137 * 180 / Math.PI, (2 * Math.atan(Math.exp(y / 6378137)) - Math.PI / 2) * 180 / Math.PI];
+const signedArea = r => { let s = 0; for (let i = 0; i < r.length - 1; i++) s += r[i][0] * r[i + 1][1] - r[i + 1][0] * r[i][1]; return s / 2; };
+
+// ---------------- reading uploaded files ----------------
+// Each reader returns [{name, rings: [[ [lon,lat], ... ], ...], props}] with outer rings only (holes are left out).
+const READ = {
+  geojson(g, fallbackName) {
+    const feats = g.type === 'FeatureCollection' ? g.features : g.type === 'Feature' ? [g] : [{type: 'Feature', properties: {}, geometry: g}];
+    const out = [];
+    const polys = geom => !geom ? [] : geom.type === 'Polygon' ? [geom.coordinates] : geom.type === 'MultiPolygon' ? geom.coordinates
+      : geom.type === 'GeometryCollection' ? geom.geometries.flatMap(polys) : [];
+    feats.forEach((f, i) => {
+      let rings = polys(f.geometry).map(p => p[0]).filter(r => r && r.length >= 4);
+      if (!rings.length) return;
+      if (rings.some(r => r.some(([x, y]) => Math.abs(x) > 180 || Math.abs(y) > 90))) rings = rings.map(r => r.map(fromMercator));   // Web Mercator metres
+      const p = f.properties || {};
+      out.push({name: p.name || p.NAME || p.Name || p.title || `${fallbackName}${feats.length > 1 ? ' ' + (i + 1) : ''}`, rings, props: p});
+    });
+    return out;
+  },
+  kml(text, fallbackName) {
+    const doc = new DOMParser().parseFromString(text, 'application/xml');
+    if (doc.querySelector('parsererror')) throw new Error('The KML file could not be read.');
+    const out = [];
+    [...doc.getElementsByTagName('Placemark')].forEach((pm, i) => {
+      const rings = [...pm.getElementsByTagName('outerBoundaryIs')].map(ob => {
+        const c = ob.getElementsByTagName('coordinates')[0];
+        return c ? c.textContent.trim().split(/\s+/).map(t => t.split(',').slice(0, 2).map(Number)).filter(p => p.length === 2 && !isNaN(p[0])) : [];
+      }).filter(r => r.length >= 4);
+      if (!rings.length) return;
+      const nm = pm.getElementsByTagName('name')[0];
+      out.push({name: (nm && nm.textContent.trim()) || `${fallbackName} ${i + 1}`, rings, props: {}});
+    });
+    return out;
+  },
+  shp(buf, prj, fallbackName) {
+    let conv = p => p;
+    if (prj) {
+      if (/Mercator_Auxiliary_Sphere|Pseudo.Mercator|Web_Mercator|3857/i.test(prj)) conv = fromMercator;
+      else if (/^\s*PROJCS/i.test(prj)) throw new Error('This shapefile uses a map projection the picker cannot read. Please save it in WGS 84 (EPSG:4326) and upload it again.');
+    }
+    const dv = new DataView(buf); const out = []; let pos = 100, n = 0;
+    while (pos + 12 <= buf.byteLength) {
+      const len = dv.getInt32(pos + 4, false) * 2; const type = dv.getInt32(pos + 8, true); const s = pos + 8;
+      if ([5, 15, 25].includes(type)) {
+        const np = dv.getInt32(s + 36, true), npts = dv.getInt32(s + 40, true);
+        const parts = []; for (let i = 0; i < np; i++) parts.push(dv.getInt32(s + 44 + 4 * i, true));
+        const p0 = s + 44 + 4 * np; const pts = [];
+        for (let i = 0; i < npts; i++) pts.push(conv([dv.getFloat64(p0 + 16 * i, true), dv.getFloat64(p0 + 16 * i + 8, true)]));
+        if (!prj && pts.some(([x, y]) => Math.abs(x) > 180 || Math.abs(y) > 90)) for (let i = 0; i < pts.length; i++) pts[i] = fromMercator(pts[i]);
+        let rings = parts.map((st, i) => pts.slice(st, i + 1 < np ? parts[i + 1] : npts)).filter(r => r.length >= 4);
+        const outers = rings.filter(r => signedArea(r) < 0);            // shapefile outer rings are clockwise
+        if (outers.length) rings = outers;
+        n++; if (rings.length) out.push({name: `${fallbackName}${n > 1 ? ' ' + n : ''}`, rings, props: {}});
+      }
+      pos += 8 + len;
+    }
+    if (n === 1 && out.length) out[0].name = fallbackName;
+    return out;
+  },
+  async file(file) {
+    const name = file.name, low = name.toLowerCase(), base = name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
+    if (/\.(geo)?json$/.test(low)) return READ.geojson(JSON.parse(await file.text()), base);
+    if (low.endsWith('.kml')) return READ.kml(await file.text(), base);
+    if (low.endsWith('.kmz') || low.endsWith('.zip')) {
+      if (!window.JSZip) throw new Error('The zip reader did not load. Please reload the page and try again.');
+      const zip = await JSZip.loadAsync(file); const files = Object.values(zip.files).filter(f => !f.dir && !/__MACOSX|\/\._/.test(f.name));
+      const kml = files.find(f => /\.kml$/i.test(f.name));
+      if (kml) return READ.kml(await kml.async('string'), base);
+      const shps = files.filter(f => /\.shp$/i.test(f.name));
+      if (!shps.length) throw new Error('No shapefile (.shp) or KML found in this zip file.');
+      let out = [];
+      for (const shp of shps) {
+        const prjF = files.find(f => f.name.toLowerCase() === shp.name.toLowerCase().replace(/\.shp$/, '.prj'));
+        const nm = shps.length > 1 ? shp.name.split('/').pop().replace(/\.shp$/i, '').replace(/[_-]+/g, ' ') : base;
+        out = out.concat(READ.shp(await shp.async('arraybuffer'), prjF ? await prjF.async('string') : '', nm));
+      }
+      return out;
+    }
+    throw new Error(`"${name}": please use a GeoJSON (.geojson/.json), KML/KMZ, or a zipped shapefile (.zip).`);
+  },
+};
+
+Promise.all([getJSON('data/picker_areas.json'), getJSON('site.json').catch(e => { console.warn(e.message); return {}; })]).then(([DATA, SITE]) => {
+  const FROM_FORM = new URLSearchParams(location.search).get('from') === 'form';   // opened from the link inside the survey
   const COUNTRY = {angola: 'Angola', botswana: 'Botswana', namibia: 'Namibia', zambia: 'Zambia', zimbabwe: 'Zimbabwe'};
   const sel = new Set();        // area ids
   const dsel = new Set();       // district ids (admin level 2)
+  const wsel = new Set();       // WDA ids
+  let shapes = [];              // drawn or uploaded: {id, name, how, rings}
+  let draft = [];               // points of the shape being drawn
+  let mode = 'area';
   const DIST = DATA.districts || [];
   const dById = new Map(DIST.map(d => [d.id, d]));
-  const wsel = new Set();       // WDA ids
-  let mode = 'area';
   const byId = new Map(DATA.areas.map(a => [a.id, a]));
+  const $ = id => document.getElementById(id);
+
+  if (FROM_FORM) {
+    $('intro').textContent = 'Choose the areas where your project works: click areas, districts or whole WDAs, or draw or upload areas that are not on the map. Then copy the location code and paste it into the survey, in the question “Location code”. Your survey stays open in the other tab.';
+    $('steps').innerHTML = '<li><b>1</b> Click, draw or upload your areas</li><li><b>2</b> Copy the location code</li><li><b>3</b> Go back to the survey tab and paste it</li>';
+  }
 
   // Shapefile outer rings are clockwise, which is what d3-geo expects; holes (counter-clockwise) are dropped for this overview map.
-  const signed = r => { let s = 0; for (let i = 0; i < r.length - 1; i++) s += r[i][0] * r[i + 1][1] - r[i + 1][0] * r[i][1]; return s / 2; };
-  const feat = (g, props) => ({type: 'Feature', properties: props, geometry: {type: 'MultiPolygon', coordinates: (g.some(r => signed(r) < 0) ? g.filter(r => signed(r) < 0) : g.map(r => r.slice().reverse())).map(r => [r])}});
-  // (an area drawn with the opposite ring order in the source layer is flipped)
+  const feat = (g, props) => ({type: 'Feature', properties: props, geometry: {type: 'MultiPolygon', coordinates: (g.some(r => signedArea(r) < 0) ? g.filter(r => signedArea(r) < 0) : g.map(r => r.slice().reverse())).map(r => [r])}});
   // Guard: a ring that d3 reads as covering more than half the globe is inside out; reverse it.
   const fixInverted = f => { f.geometry.coordinates = f.geometry.coordinates.map(poly => d3.geoArea({type: 'Polygon', coordinates: poly}) > 2 * Math.PI ? [poly[0].slice().reverse()] : poly); return f; };
   const areas = DATA.areas.map(a => fixInverted(feat(a.g, a)));
@@ -186,12 +350,14 @@ Promise.all([fetch('data/picker_areas.json').then(r => r.json()), fetch('site.js
   const dists = DIST.map(d => fixInverted(feat(d.g, d)));
   const dmeta = d => `${d.t || 'District'} · ${d.p ? d.p + ', ' : ''}${COUNTRY[d.c] || ''}`;
   const kaza = {type: 'FeatureCollection', features: DATA.kaza.map(r => feat([r], {}))};
+  const shapeFeature = s => fixInverted({type: 'Feature', properties: s, geometry: {type: 'MultiPolygon', coordinates: s.rings.map(r => [r])}});
+  const km2 = f => Math.round(d3.geoArea(f) * 6371.0088 ** 2);
 
   const svg = d3.select('#map');
   const g = svg.append('g');
   const proj = d3.geoMercator();
   const path = d3.geoPath(proj);
-  const tip = document.getElementById('tip');
+  const tip = $('tip');
   const box = document.querySelector('.mapbox');
 
   function fit() {
@@ -199,6 +365,7 @@ Promise.all([fetch('data/picker_areas.json').then(r => r.json()), fetch('site.js
     svg.attr('viewBox', `0 0 ${r.width} ${r.height}`);
     proj.fitExtent([[12, 12], [r.width - 12, r.height - 12]], kaza);
     g.selectAll('path').attr('d', path);
+    renderDraft();
   }
   g.append('g').selectAll('path').data(areas).join('path').attr('class', 'area').attr('data-id', d => d.properties.id)
     .on('click', (e, d) => { if (mode === 'area') toggle(d.properties.id); })
@@ -212,21 +379,25 @@ Promise.all([fetch('data/picker_areas.json').then(r => r.json()), fetch('site.js
     .on('click', (e, d) => { if (mode === 'wda') toggleWda(d.properties.id); })
     .on('mousemove', (e, d) => showTip(e, d.properties.n + ' WDA', mode === 'wda' ? 'Click to select the whole WDA' : 'Wildlife Dispersal Area'))
     .on('mouseleave', hideTip);
-  const gsel = g.append('g');   // selected areas drawn on top so they stay visible
+  const gsel = g.append('g');     // selected areas drawn on top so they stay visible
+  const gshape = g.append('g');   // drawn and uploaded areas
   g.append('g').selectAll('path').data(kaza.features).join('path').attr('class', 'kaza').style('pointer-events', 'none');
+  const gdraft = g.append('g');   // the shape being drawn
 
-  const zoom = d3.zoom().scaleExtent([1, 60]).on('zoom', e => g.attr('transform', e.transform));
+  let k = 1;
+  const zoom = d3.zoom().scaleExtent([1, 80]).on('zoom', e => { g.attr('transform', e.transform); k = e.transform.k; gdraft.selectAll('circle').attr('r', 4 / k); });
   svg.call(zoom).on('dblclick.zoom', null);
-  document.getElementById('zin').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1.8);
-  document.getElementById('zout').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.8);
-  document.getElementById('zreset').onclick = () => svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
+  $('zin').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1.8);
+  $('zout').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.8);
+  $('zreset').onclick = () => svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
   function zoomTo(f) {
     const r = svg.node().getBoundingClientRect(); const [[x0, y0], [x1, y1]] = path.bounds(f);
-    const k = Math.min(40, 0.7 / Math.max((x1 - x0) / r.width, (y1 - y0) / r.height));
-    svg.transition().duration(450).call(zoom.transform, d3.zoomIdentity.translate(r.width / 2, r.height / 2).scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2));
+    const kk = Math.min(60, 0.7 / Math.max((x1 - x0) / r.width, (y1 - y0) / r.height, 1e-6));
+    svg.transition().duration(450).call(zoom.transform, d3.zoomIdentity.translate(r.width / 2, r.height / 2).scale(kk).translate(-(x0 + x1) / 2, -(y0 + y1) / 2));
   }
 
   function showTip(e, title, sub) {
+    if (mode === 'draw') return;
     const r = box.getBoundingClientRect();
     tip.replaceChildren(); const b = document.createElement('b'); b.textContent = title; const s = document.createElement('span'); s.textContent = sub; tip.append(b, s);
     tip.hidden = false;
@@ -235,27 +406,97 @@ Promise.all([fetch('data/picker_areas.json').then(r => r.json()), fetch('site.js
     tip.style.left = Math.max(8, x) + 'px'; tip.style.top = y + 'px';
   }
   function hideTip() { tip.hidden = true; }
+  let noticeTimer = null;
+  function notice(msg, err) { const n = $('notice'); n.textContent = msg; n.className = 'notice' + (err ? ' err' : ''); n.hidden = false; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => n.hidden = true, err ? 9000 : 5000); }
 
   function toggle(id) { sel.has(id) ? sel.delete(id) : sel.add(id); render(); }
   function toggleDist(id) { dsel.has(id) ? dsel.delete(id) : dsel.add(id); render(); }
   function toggleWda(id) { wsel.has(id) ? wsel.delete(id) : wsel.add(id); render(); }
 
   function setMode(m) {
+    if (mode === 'draw' && m !== 'draw' && draft.length) { draft = []; renderDraft(); }
     mode = m;
-    document.getElementById('m-area').setAttribute('aria-pressed', m === 'area');
-    document.getElementById('m-wda').setAttribute('aria-pressed', m === 'wda');
-    document.getElementById('m-dist').setAttribute('aria-pressed', m === 'dist');
-    svg.classed('mode-wda', m === 'wda'); svg.classed('mode-dist', m === 'dist');
+    ['area', 'wda', 'dist', 'draw'].forEach(x => $('m-' + x).setAttribute('aria-pressed', m === x));
+    svg.classed('mode-wda', m === 'wda').classed('mode-dist', m === 'dist').classed('mode-draw', m === 'draw');
+    $('drawbar').hidden = m !== 'draw'; hideTip();
   }
-  document.getElementById('m-area').onclick = () => setMode('area');
-  document.getElementById('m-wda').onclick = () => setMode('wda');
-  document.getElementById('m-dist').onclick = () => setMode('dist');
+  $('m-area').onclick = () => setMode('area');
+  $('m-wda').onclick = () => setMode('wda');
+  $('m-dist').onclick = () => setMode('dist');
+  $('m-draw').onclick = () => setMode('draw');
 
-  const whole = document.getElementById('wholekaza');
+  // ---------- drawing ----------
+  function renderDraft() {
+    const pts = draft.map(p => proj(p));
+    gdraft.selectAll('path.draft-fill').data(draft.length >= 3 ? [pts] : []).join('path').attr('class', 'draft-fill').attr('d', d => 'M' + d.join('L') + 'Z');
+    gdraft.selectAll('path.draft-line').data(draft.length >= 2 ? [pts] : []).join('path').attr('class', 'draft-line').attr('d', d => 'M' + d.join('L'));
+    gdraft.selectAll('circle').data(pts).join('circle').attr('class', 'vtx').attr('cx', d => d[0]).attr('cy', d => d[1]).attr('r', 4 / k);
+    $('d-finish').disabled = draft.length < 3; $('d-undo').disabled = !draft.length;
+    $('drawhint').textContent = draft.length < 3 ? `Click on the map to add corner points (${draft.length} so far, at least 3).` : `${draft.length} points. Finish, or double-click the last point.`;
+  }
+  svg.on('click.draw', e => {
+    if (mode !== 'draw') return;
+    const [x, y] = d3.zoomTransform(svg.node()).invert(d3.pointer(e, svg.node()));
+    const ll = proj.invert([x, y]); const last = draft[draft.length - 1];
+    if (last && Math.abs(last[0] - ll[0]) < 1e-7 && Math.abs(last[1] - ll[1]) < 1e-7) return;
+    draft.push(ll); renderDraft();
+  });
+  svg.on('dblclick.draw', e => { if (mode === 'draw' && draft.length >= 3) { e.preventDefault(); finishDraft(); } });
+  function finishDraft() {
+    if (draft.length < 3) return;
+    const n = shapes.length + 1;
+    addShapes([{name: `Drawn area ${n}`, rings: [closeRing(draft.slice())], how: 'drawn'}], false);
+    draft = []; renderDraft();
+    notice('Shape added. Give it a name on the right, draw another one, or switch back to Areas.');
+  }
+  $('d-finish').onclick = finishDraft;
+  $('d-undo').onclick = () => { draft.pop(); renderDraft(); };
+  $('d-cancel').onclick = () => { draft = []; renderDraft(); setMode('area'); };
+  document.addEventListener('keydown', e => {
+    if (mode !== 'draw' || e.target.matches('input, textarea')) return;
+    if (e.key === 'Enter') finishDraft();
+    if (e.key === 'Escape') { draft = []; renderDraft(); }
+    if ((e.key === 'z' && (e.ctrlKey || e.metaKey)) || e.key === 'Backspace') { draft.pop(); renderDraft(); e.preventDefault(); }
+  });
+
+  // ---------- shapes (drawn or uploaded) ----------
+  let nextId = 1;
+  function addShapes(list, fit) {
+    const added = [];
+    list.forEach(s => {
+      const rings = s.rings.map(r => closeRing(simplifyRing(closeRing(r)))).filter(r => r.length >= 4);
+      if (!rings.length) return;
+      const shp = {id: 'S' + nextId++, name: (s.name || 'Area').slice(0, 80), how: s.how || 'drawn', rings};
+      shapes.push(shp); added.push(shp);
+    });
+    render();
+    if (fit && added.length) zoomTo({type: 'FeatureCollection', features: added.map(shapeFeature)});
+    return added;
+  }
+  $('file').onchange = async e => {
+    const files = [...e.target.files]; e.target.value = '';
+    for (const file of files) {
+      try {
+        const feats = await READ.file(file);
+        if (!feats.length) { notice(`No areas (polygons) found in "${file.name}". Points and lines cannot be used.`, true); continue; }
+        // a feature that carries a KAZA_ID of an area in the list is selected from the list instead
+        const listed = [], fresh = [];
+        feats.forEach(f => { const kid = String(f.props.KAZA_ID ?? f.props.kaza_id ?? f.props.kazaid ?? '').split('.')[0]; (kid && byId.has(kid) ? listed : fresh).push(Object.assign(f, {kid})); });
+        listed.forEach(f => sel.add(f.kid));
+        if (feats.length > 25) { notice(`"${file.name}" has ${feats.length} areas; only the first 25 are used. Please upload fewer at a time.`, true); fresh.splice(25); }
+        const added = addShapes(fresh.map(f => ({name: f.name, rings: f.rings, how: 'file ' + file.name.slice(0, 60)})), true);
+        if (listed.length) { render(); if (!added.length) zoomTo({type: 'FeatureCollection', features: areas.filter(a => listed.some(l => l.kid === a.properties.id))}); }
+        notice([added.length ? `Added ${added.length} area${added.length > 1 ? 's' : ''} from "${file.name}" (simplified to about 100 m).` : '',
+                listed.length ? `Recognised ${listed.map(l => byId.get(l.kid).n).join(', ')} from the list and selected ${listed.length > 1 ? 'them' : 'it'}.` : ''].filter(Boolean).join(' '));
+      } catch (err) { console.error(err); notice(err.message || `"${file.name}" could not be read.`, true); }
+    }
+  };
+
+  const whole = $('wholekaza');
   whole.onchange = render;
 
   // search
-  const q = document.getElementById('q'), res = document.getElementById('results');
+  const q = $('q'), res = $('results');
   q.addEventListener('input', () => {
     const t = q.value.trim().toLowerCase(); res.replaceChildren();
     d3.selectAll('.area').classed('hl', false);
@@ -270,7 +511,7 @@ Promise.all([fetch('data/picker_areas.json').then(r => r.json()), fetch('site.js
       res.append(b);
     });
     const hits = DATA.areas.filter(a => (a.n + ' ' + a.t + ' ' + a.id).toLowerCase().includes(t)).slice(0, 30);
-    if (!hits.length && !dh.length) { const e = document.createElement('button'); e.disabled = true; e.textContent = 'No area found. If it is not on the map, add it in the survey under "areas not in the lists".'; res.append(e); }
+    if (!hits.length && !dh.length) { const e = document.createElement('button'); e.disabled = true; e.textContent = 'No area found. If it is not on the map, draw it (Draw) or upload a file.'; res.append(e); }
     hits.forEach(a => {
       const b = document.createElement('button'); b.type = 'button';
       const l = document.createElement('span'); l.textContent = (sel.has(a.id) ? '✓ ' : '') + a.n;
@@ -285,20 +526,44 @@ Promise.all([fetch('data/picker_areas.json').then(r => r.json()), fetch('site.js
   });
   q.addEventListener('keydown', e => { if (e.key === 'Escape') { res.hidden = true; q.value = ''; } });
 
+  // ---------- the location code ----------
+  function summary() {
+    if (whole.checked) return 'Whole KAZA';
+    const names = [...wsel].map(id => DATA.wdas.find(w => w.id === id).n + ' WDA')
+      .concat([...dsel].map(id => dById.get(id).n + ' district'))
+      .concat([...sel].map(id => byId.get(id).n));
+    let s = names.slice(0, 8).join(', ') + (names.length > 8 ? ` and ${names.length - 8} more` : '');
+    if (shapes.length) s += (s ? ' + ' : '') + `${shapes.length} drawn/uploaded: ` + shapes.map(x => x.name).slice(0, 4).join(', ') + (shapes.length > 4 ? '…' : '');
+    return s.replace(/\|/g, '/');
+  }
+  function locationCode() {
+    const o = {v: 1};
+    if (whole.checked) o.k = 1;
+    else {
+      if (wsel.size) o.w = [...wsel];
+      if (sel.size) o.a = [...sel];
+      if (dsel.size) o.d = [...dsel];
+      if (shapes.length) o.s = shapes.map(s => ({n: s.name, h: s.how, p: s.rings.map(r => LOC.encRing(r))}));
+    }
+    return `KAZA-LOC1 | ${summary()} | ${LOC.b64(JSON.stringify(o))}`;
+  }
+
   // survey link
-  const urlIn = document.getElementById('surveyurl');
+  const urlIn = $('surveyurl');
   urlIn.value = SITE.survey_url || '';
   try { const v = localStorage.getItem('kaza_picker_survey'); if (v) urlIn.value = v; } catch (e) {}
   urlIn.addEventListener('input', () => { try { localStorage.setItem('kaza_picker_survey', urlIn.value.trim()); } catch (e) {} render(); });
-
   const isKobo = u => /kobotoolbox\.org|enketo/i.test(u);
   const isS123 = u => /^https:\/\/survey123\.arcgis\.com\/share\/\w+/.test(u);
-  function buildUrl() {
+  const MAX_URL = 7000;   // longer links may be refused by the survey server; then people copy and paste the code instead
+
+  function buildUrl(code) {
     const raw = urlIn.value.trim() || 'https://ee.kobotoolbox.org/x/YOUR-FORM-ID';
-    if (isKobo(raw)) return buildKobo(raw.split('?')[0].replace(/#.*$/, ''));
-    const base = raw.split('?')[0];
+    const base = raw.split('?')[0].replace(/#.*$/, '');
+    if (isKobo(raw)) return base + '?d[loc_code]=' + encodeURIComponent(code);
+    // Survey123 (older test form): only the listed areas can be passed on, not drawn or uploaded shapes
     const p = [];
-    if (whole.checked) { p.push('field:whole_kaza=yes'); }
+    if (whole.checked) p.push('field:whole_kaza=yes');
     else {
       p.push('field:whole_kaza=no');
       if (wsel.size) p.push('field:loc_wdas=' + [...wsel].join(','));
@@ -308,73 +573,104 @@ Promise.all([fetch('data/picker_areas.json').then(r => r.json()), fetch('site.js
       if (cs.length) p.push('field:loc_countries=' + cs.join(','));
       Object.keys(byC).filter(c => COUNTRY[c]).forEach(c => p.push(`field:areas_${c}=` + byC[c].join(',')));
       if (dsel.size) p.push('field:loc_districts=' + [...dsel].join(','));
-      p.push('field:has_new=no');
+      p.push('field:has_new=' + (shapes.length ? 'yes' : 'no'));
     }
     return base + '?' + p.map(s => s.replace(/ /g, '%20')).join('&');
   }
 
-  // KoboToolbox (Enketo): ?d[question]=value; several choices are separated by spaces
-  function buildKobo(base) {
-    const p = []; const add = (k, v) => p.push('d[' + k + ']=' + encodeURIComponent(v));
-    if (whole.checked) add('whole_kaza', 'yes');
-    else {
-      add('whole_kaza', 'no');
-      if (wsel.size) add('loc_wdas', [...wsel].join(' '));
-      const byC = {};
-      sel.forEach(id => { const a = byId.get(id); (byC[a.c] = byC[a.c] || []).push(id); });
-      const cs = [...new Set(Object.keys(byC).concat([...dsel].map(id => dById.get(id).c)))].filter(c => COUNTRY[c]);
-      if (cs.length) add('loc_countries', cs.join(' '));
-      Object.keys(byC).filter(c => COUNTRY[c]).forEach(c => add('areas_' + c, byC[c].join(' ')));
-      if (dsel.size) add('loc_districts', [...dsel].join(' '));
-      add('has_new', 'no');
-    }
-    return base + '?' + p.join('&');
+  // remember the selection in this browser, so the map can be reopened and changed (e.g. to add another shape)
+  const STORE = 'kaza_picker_state_v1';
+  function save() { try { localStorage.setItem(STORE, JSON.stringify({whole: whole.checked, a: [...sel], d: [...dsel], w: [...wsel], s: shapes})); } catch (e) {} }
+  function restore() {
+    try {
+      const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (!s) return false;
+      whole.checked = !!s.whole; (s.a || []).forEach(x => byId.has(x) && sel.add(x)); (s.d || []).forEach(x => dById.has(x) && dsel.add(x));
+      (s.w || []).forEach(x => wsel.add(x)); shapes = (s.s || []).filter(x => x && x.rings); nextId = shapes.length + 1;
+      shapes.forEach((x, i) => x.id = 'S' + (i + 1));
+      return sel.size + dsel.size + wsel.size + shapes.length > 0 || whole.checked;
+    } catch (e) { return false; }
   }
+  $('restart').onclick = () => { sel.clear(); dsel.clear(); wsel.clear(); shapes = []; draft = []; whole.checked = false; renderDraft(); render(); notice('Cleared. You can start again.'); };
 
   function render() {
     d3.selectAll('.area').classed('on', d => sel.has(d.properties.id));
     gsel.selectAll('path').data(areas.filter(f => sel.has(f.properties.id)), d => d.properties.id).join('path').attr('class', 'picked').attr('d', path);
+    gshape.selectAll('path').data(shapes.map(shapeFeature), d => d.properties.id).join('path').attr('class', 'shape').attr('d', path);
     d3.selectAll('.wda').classed('on', d => wsel.has(d.properties.id));
     d3.selectAll('.dist').classed('on', d => dsel.has(d.properties.id));
     svg.style('opacity', whole.checked ? .55 : 1);
-    const basket = document.getElementById('basket'); basket.replaceChildren();
-    const items = [...wsel].map(id => ({id, n: DATA.wdas.find(w => w.id === id).n + ' WDA', meta: 'Whole WDA', w: true}))
-      .concat([...dsel].map(id => { const d = dById.get(id); return {id, n: d.n, meta: dmeta(d), d: true}; }))
-      .concat([...sel].map(id => { const a = byId.get(id); return {id, n: a.n, meta: `${a.t || 'area'} · ${COUNTRY[a.c] || ''}`}; }));
-    if (whole.checked) { const e = document.createElement('div'); e.className = 'empty'; e.textContent = 'Whole of KAZA selected. Any areas below will be ignored.'; basket.append(e); }
-    if (!items.length && !whole.checked) { const e = document.createElement('div'); e.className = 'empty'; e.textContent = 'Nothing selected yet. Click areas on the map, or search above it.'; basket.append(e); }
+    const basket = $('basket'); basket.replaceChildren();
+    const items = [...wsel].map(id => ({id, n: DATA.wdas.find(w => w.id === id).n + ' WDA', meta: 'Whole WDA', set: wsel}))
+      .concat([...dsel].map(id => { const d = dById.get(id); return {id, n: d.n, meta: dmeta(d), set: dsel}; }))
+      .concat([...sel].map(id => { const a = byId.get(id); return {id, n: a.n, meta: `${a.t || 'area'} · ${COUNTRY[a.c] || ''}`, set: sel}; }));
+    if (whole.checked) { const e = document.createElement('div'); e.className = 'empty'; e.textContent = 'Whole of KAZA selected. Anything below will be ignored.'; basket.append(e); }
+    if (!items.length && !shapes.length && !whole.checked) { const e = document.createElement('div'); e.className = 'empty'; e.textContent = 'Nothing selected yet. Click areas on the map, search above it, draw an area or upload a file.'; basket.append(e); }
+    shapes.forEach(s => {
+      const c = document.createElement('div'); c.className = 'chip shapechip';
+      const nm = document.createElement('input'); nm.className = 'nm'; nm.value = s.name; nm.setAttribute('aria-label', 'Name of this area'); nm.maxLength = 80;
+      nm.oninput = () => { s.name = nm.value.trim() || 'Unnamed area'; refreshCode(); };
+      const meta = document.createElement('span'); meta.className = 'meta';
+      const z = document.createElement('a'); z.href = '#'; z.textContent = 'show on map'; z.onclick = ev => { ev.preventDefault(); zoomTo(shapeFeature(s)); };
+      meta.append(`${s.how === 'drawn' ? 'Drawn' : 'From ' + s.how.replace(/^file /, '')} · about ${km2(shapeFeature(s)).toLocaleString('en')} km² · `, z);
+      const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.setAttribute('aria-label', 'Remove ' + s.name);
+      x.onclick = () => { shapes = shapes.filter(t => t !== s); render(); };
+      c.append(nm, x, meta); basket.append(c);
+    });
     items.forEach(it => {
       const c = document.createElement('div'); c.className = 'chip';
       const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = it.n;
       const meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = it.meta + ' · ';
       const idn = document.createElement('span'); idn.className = 'id'; idn.textContent = it.id; meta.append(idn);
       const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.setAttribute('aria-label', 'Remove ' + it.n);
-      x.onclick = () => { (it.w ? wsel : it.d ? dsel : sel).delete(it.id); render(); };
+      x.onclick = () => { it.set.delete(it.id); render(); };
       c.append(nm, x, meta); basket.append(c);
     });
-    const n = sel.size + wsel.size + dsel.size;
-    document.getElementById('n').textContent = whole.checked ? '· whole of KAZA' : `· ${n} ${n === 1 ? 'area' : 'areas'}`;
-    const ok = whole.checked || n > 0; const hasUrl = isS123(urlIn.value.trim()) || /^https:\/\/\S*kobotoolbox\.org\/\S+/.test(urlIn.value.trim());
-    const url = buildUrl(); const go = document.getElementById('go');
-    go.setAttribute('aria-disabled', ok && hasUrl ? 'false' : 'true'); go.href = ok && hasUrl ? url : '#';
-    document.getElementById('gohint').textContent = ok
-      ? (hasUrl ? 'Opens the survey in a new tab with your areas filled in. You can still add areas that are not on the map there.' : 'Survey address not set yet: add it under “Survey link” below.')
-      : 'Select at least one area, district or WDA, or tick “whole of KAZA”.';
-    if (ok && !hasUrl) document.getElementById('setup').open = true;
-    document.getElementById('url').textContent = url;
+    const n = items.length + shapes.length;
+    $('n').textContent = whole.checked ? '· whole of KAZA' : n ? `· ${n} ${n === 1 ? 'location' : 'locations'}` : '· nothing yet';
+    refreshCode();
   }
 
-  document.getElementById('copy').onclick = async () => {
-    const t = document.getElementById('url').textContent;
-    try { await navigator.clipboard.writeText(t); document.getElementById('copy').textContent = 'Copied'; }
-    catch (e) { const r = document.createRange(); r.selectNodeContents(document.getElementById('url')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
-    setTimeout(() => document.getElementById('copy').textContent = 'Copy link', 1500);
+  function refreshCode() {
+    const ok = whole.checked || sel.size + dsel.size + wsel.size + shapes.length > 0;
+    const code = ok ? locationCode() : '';
+    $('code').value = code;
+    $('copycode').setAttribute('aria-disabled', ok ? 'false' : 'true');
+    const raw = urlIn.value.trim(); const hasUrl = isS123(raw) || /^https:\/\/\S*kobotoolbox\.org\/\S+/.test(raw);
+    const url = ok ? buildUrl(code) : ''; const tooLong = url.length > MAX_URL;
+    const go = $('go');
+    go.hidden = FROM_FORM;
+    go.setAttribute('aria-disabled', ok && hasUrl && !tooLong ? 'false' : 'true'); go.href = ok && hasUrl && !tooLong ? url : '#';
+    $('url').textContent = url || '—';
+    let hint;
+    if (!ok) hint = 'Select at least one area, district or WDA, draw or upload an area, or tick “whole of KAZA”.';
+    else if (FROM_FORM) hint = 'Copy the code, go back to the survey tab and paste it into the question “Location code”. You can come back here to change it; your selection is kept in this browser.';
+    else if (!hasUrl) hint = 'Survey address not set yet: add it under “Survey link” below. You can still copy the location code.';
+    else if (tooLong) hint = 'Your shapes are too detailed to send along automatically. Copy the location code, open the survey with the button below, and paste the code into the question “Location code”.';
+    else if (isS123(raw) && shapes.length) hint = 'Survey123 can only receive the listed areas. Drawn and uploaded areas are not passed on.';
+    else hint = 'Opens the survey in a new tab with your locations filled in. You can also copy the code and paste it yourself.';
+    $('gohint').textContent = hint;
+    if (tooLong && hasUrl && !FROM_FORM) { go.setAttribute('aria-disabled', 'false'); go.href = raw.split('?')[0]; go.textContent = 'Open the survey (then paste the code)'; }
+    else go.textContent = 'Continue to the survey';
+    if (ok && !hasUrl && !FROM_FORM) $('setup').open = true;
+    save();
+  }
+
+  $('copycode').onclick = async () => {
+    const t = $('code').value; if (!t) return;
+    try { await navigator.clipboard.writeText(t); }
+    catch (e) { $('code').select(); document.execCommand && document.execCommand('copy'); }
+    $('copycode').textContent = 'Copied – now paste it into the survey';
+    setTimeout(() => $('copycode').textContent = 'Copy location code', 2500);
   };
 
-  fit(); render();
-  if (urlIn.value) document.getElementById('setup').open = false;
+  fit();
+  const restored = restore();
+  render();
+  if (restored) notice('Your earlier selection in this browser has been restored. Use “Start again” to clear it.');
+  if (urlIn.value || FROM_FORM) $('setup').open = false;
   new ResizeObserver(() => fit()).observe(svg.node());
-}).catch(e => { document.querySelector('.mapbox').insertAdjacentHTML('afterbegin', '<p style="padding:12px">The map data could not be loaded. Please reload the page.</p>'); console.error(e); });
+  window.__picker = {locationCode, addShapes, get shapes() { return shapes; }, sel, dsel, wsel};   // for testing
+}).catch(e => showLoadError(p => document.querySelector('.mapbox').prepend(p), e));
 </script>
 </body>
 </html>
