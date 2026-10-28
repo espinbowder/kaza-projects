@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KAZA Area Picker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: map on the left, the selection "basket" on the right; stacks at phone width with the basket below. */
+:root {
+  --bg: #f4f6f2;
+  --panel: #ffffff;
+  --ink: #1d2a24;
+  --muted: #5d6b63;
+  --line: #d6ddd6;
+  --water: #f7f8f5;
+  --accent: #1f6a55;        /* KAZA green: buttons, focus */
+  --pick: #d38a1f;          /* ochre: selected areas */
+  --pick-ink: #7a4a05;
+  --area: #c7d8c2;
+  --area-line: #6f8a78;
+  --wda-line: #2f5d50;
+  --hover: #f3d9ac;
+  --font-ui: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121815; --panel: #1a221e; --ink: #e5ece7; --muted: #9aaba1; --line: #2e3a34; --water: #0f1512;
+    --accent: #5fbf9f; --pick: #e8a23c; --pick-ink: #f4c27a; --area: #2a3a32; --area-line: #4f6b5c; --wda-line: #8fd1b8; --hover: #5a4521;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121815; --panel: #1a221e; --ink: #e5ece7; --muted: #9aaba1; --line: #2e3a34; --water: #16201b;
+  --accent: #5fbf9f; --pick: #e8a23c; --pick-ink: #f4c27a; --area: #2a3a32; --area-line: #4f6b5c; --wda-line: #8fd1b8; --hover: #5a4521;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 15px; line-height: 1.45; }
+.wrap { max-width: 1280px; margin: 0 auto; padding-block: 18px 28px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 14px; }
+header h1 { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+header p { margin: 4px 0 0; color: var(--muted); max-width: 70ch; }
+.steps { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 10px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: .9rem; }
+.steps b { color: var(--ink); font-weight: 600; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.mapbox { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); position: relative; overflow: hidden; min-width: 0; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.toolbar input[type=search] { flex: 1 1 220px; min-width: 0; font: inherit; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { font: inherit; font-size: .88rem; padding: 6px 10px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--panel); }
+.results { position: absolute; z-index: 5; left: 12px; right: 12px; top: 54px; max-height: 260px; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+.results button { display: flex; width: 100%; gap: 8px; justify-content: space-between; text-align: left; font: inherit; font-size: .9rem; padding: 7px 10px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
+.results button:hover, .results button:focus-visible { background: var(--hover); outline: none; }
+.results small { color: var(--muted); white-space: nowrap; }
+svg.map { display: block; width: 100%; height: min(68vh, 640px); background: var(--water); touch-action: none; cursor: grab; }
+svg.map:active { cursor: grabbing; }
+.kaza { fill: none; stroke: var(--ink); stroke-width: 1.2; vector-effect: non-scaling-stroke; opacity: .55; }
+.wda { fill: none; stroke: var(--wda-line); stroke-width: 1.6; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+.wda.on { fill: var(--pick); fill-opacity: .28; stroke: var(--pick); stroke-dasharray: none; stroke-width: 2.2; }
+.area { fill: var(--area); stroke: var(--area-line); stroke-width: .6; vector-effect: non-scaling-stroke; cursor: pointer; fill-opacity: .85; }
+.area:hover, .area.hl { fill: var(--hover); }
+.area.on { fill: var(--pick); }
+.picked { fill: var(--pick); fill-opacity: .92; stroke: var(--pick-ink); stroke-width: 1.6; vector-effect: non-scaling-stroke; pointer-events: none; }
+.mode-wda .area { pointer-events: none; opacity: .45; }
+.dist { display: none; fill: var(--area); stroke: var(--area-line); stroke-width: .8; vector-effect: non-scaling-stroke; cursor: pointer; fill-opacity: .85; }
+.dist:hover, .dist.hl { fill: var(--hover); }
+.dist.on { fill: var(--pick); }
+.mode-dist .dist { display: inline; }
+.mode-dist .area, .mode-dist .picked { display: none; }
+.mode-dist .wda { opacity: .5; }
+.mode-wda .wda { pointer-events: visiblePainted; fill: transparent; cursor: pointer; }
+.mode-wda .wda:hover { fill: var(--hover); fill-opacity: .35; }
+.zoom { position: absolute; right: 10px; bottom: 50px; display: grid; gap: 4px; }
+.zoom button { width: 34px; height: 34px; font: inherit; font-size: 1.1rem; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }
+.tip { position: absolute; pointer-events: none; z-index: 6; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; font-size: .85rem; box-shadow: 0 6px 18px rgba(0,0,0,.14); max-width: 260px; }
+.tip b { display: block; font-weight: 600; }
+.tip span { color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
+.legend i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+aside { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: grid; gap: 14px; min-width: 0; }
+aside h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: .92rem; cursor: pointer; }
+.check input { margin-top: 3px; accent-color: var(--accent); }
+.count { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 500; }
+.basket { display: grid; gap: 6px; max-height: 300px; overflow: auto; }
+.empty { color: var(--muted); font-size: .9rem; border: 1px dashed var(--line); border-radius: 6px; padding: 12px; }
+.chip { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; padding: 7px 9px; border-radius: 6px; background: var(--bg); border: 1px solid var(--line); }
+.chip .nm { font-weight: 600; font-size: .9rem; min-width: 0; overflow-wrap: anywhere; }
+.chip .meta { grid-column: 1; color: var(--muted); font-size: .78rem; }
+.chip .id { font-family: var(--font-mono); font-size: .74rem; }
+.chip button { grid-row: 1 / span 2; grid-column: 2; font: inherit; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 1.1rem; padding: 2px 6px; border-radius: 4px; }
+.chip button:hover { color: var(--ink); background: var(--hover); }
+.go { display: grid; gap: 8px; }
+.go a.btn { display: block; text-align: center; text-decoration: none; font-weight: 600; padding: 11px 12px; border-radius: 6px; background: var(--accent); color: var(--panel); }
+.go a.btn[aria-disabled="true"] { background: var(--line); color: var(--muted); pointer-events: none; }
+.go small { color: var(--muted); font-size: .8rem; }
+details { font-size: .88rem; }
+details summary { cursor: pointer; color: var(--muted); }
+details label { display: block; margin: 8px 0 4px; color: var(--muted); font-size: .82rem; }
+details input { width: 100%; box-sizing: border-box; font: inherit; font-size: .85rem; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+.url { font-family: var(--font-mono); font-size: .74rem; word-break: break-all; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; max-height: 120px; overflow: auto; }
+.linkbtn { font: inherit; font-size: .82rem; border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 6px; padding: 5px 9px; cursor: pointer; justify-self: start; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) { .area, .wda { transition: fill .12s ease; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Where does your project work?</h1>
+    <p>Click the areas on the map where your project is active. Click again to remove an area. When you are done, continue to the KAZA projects survey: the areas you chose are filled in for you.</p>
+    <ul class="steps"><li><b>1</b> Zoom and click areas</li><li><b>2</b> Or choose whole districts, whole WDAs or the whole of KAZA</li><li><b>3</b> Continue to the survey</li></ul>
+  </header>
+
+  <div class="main">
+    <section class="mapbox" aria-label="Map of KAZA areas">
+      <div class="toolbar">
+        <input type="search" id="q" placeholder="Search an area or district, e.g. Bwabwata, NG/32, Sesheke" autocomplete="off" aria-label="Search areas">
+        <div class="seg" role="group" aria-label="What to select on the map">
+          <button id="m-area" aria-pressed="true">Areas</button>
+          <button id="m-dist" aria-pressed="false">Districts</button>
+          <button id="m-wda" aria-pressed="false">Whole WDAs</button>
+        </div>
+      </div>
+      <div class="results" id="results" hidden></div>
+      <svg class="map" id="map" role="img" aria-label="Clickable map of conservation areas in the KAZA TFCA"></svg>
+      <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zreset" aria-label="Show all of KAZA">⤢</button></div>
+      <div class="tip" id="tip" hidden></div>
+      <div class="legend">
+        <span><i style="background:var(--area);border:1px solid var(--area-line)"></i>Area you can select</span>
+        <span><i style="background:var(--pick)"></i>Selected</span>
+        <span><i style="border:1.5px dashed var(--wda-line)"></i>Wildlife Dispersal Area (WDA)</span>
+        <span><i style="border:1.5px solid var(--ink);opacity:.6"></i>KAZA boundary</span>
+      </div>
+    </section>
+
+    <aside>
+      <label class="check"><input type="checkbox" id="wholekaza"> <span><b>The project covers the whole of KAZA</b><br><span class="count">No need to select areas</span></span></label>
+      <div>
+        <h2>Your selection <span class="count" id="n">0 areas</span></h2>
+      </div>
+      <div class="basket" id="basket"></div>
+      <div class="go">
+        <a class="btn" id="go" href="#" target="_blank" rel="noopener" aria-disabled="true">Continue to the survey</a>
+        <small id="gohint">Select at least one area, district or WDA, or tick “whole of KAZA”.</small>
+      </div>
+      <details id="setup">
+        <summary>Survey link (for the KAZA team)</summary>
+        <label for="surveyurl">Survey web form address (KoboToolbox or Survey123)</label>
+        <input id="surveyurl" placeholder="https://ee.kobotoolbox.org/x/… or https://survey123.arcgis.com/share/…" value="">
+        <p class="count" style="font-size:12.5px">The address saved in <code>docs/site.json</code> is used for everyone; a value typed here only changes it in your own browser, for testing.</p>
+        <label>Link that will open</label>
+        <div class="url" id="url">—</div>
+        <button class="linkbtn" id="copy" type="button">Copy link</button>
+      </details>
+    </aside>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+Promise.all([fetch('data/picker_areas.json').then(r => r.json()), fetch('site.json').then(r => r.json()).catch(() => ({}))]).then(([DATA, SITE]) => {
+  const COUNTRY = {angola: 'Angola', botswana: 'Botswana', namibia: 'Namibia', zambia: 'Zambia', zimbabwe: 'Zimbabwe'};
+  const sel = new Set();        // area ids
+  const dsel = new Set();       // district ids (admin level 2)
+  const DIST = DATA.districts || [];
+  const dById = new Map(DIST.map(d => [d.id, d]));
+  const wsel = new Set();       // WDA ids
+  let mode = 'area';
+  const byId = new Map(DATA.areas.map(a => [a.id, a]));
+
+  // Shapefile outer rings are clockwise, which is what d3-geo expects; holes (counter-clockwise) are dropped for this overview map.
+  const signed = r => { let s = 0; for (let i = 0; i < r.length - 1; i++) s += r[i][0] * r[i + 1][1] - r[i + 1][0] * r[i][1]; return s / 2; };
+  const feat = (g, props) => ({type: 'Feature', properties: props, geometry: {type: 'MultiPolygon', coordinates: (g.some(r => signed(r) < 0) ? g.filter(r => signed(r) < 0) : g.map(r => r.slice().reverse())).map(r => [r])}});
+  // (an area drawn with the opposite ring order in the source layer is flipped)
+  // Guard: a ring that d3 reads as covering more than half the globe is inside out; reverse it.
+  const fixInverted = f => { f.geometry.coordinates = f.geometry.coordinates.map(poly => d3.geoArea({type: 'Polygon', coordinates: poly}) > 2 * Math.PI ? [poly[0].slice().reverse()] : poly); return f; };
+  const areas = DATA.areas.map(a => fixInverted(feat(a.g, a)));
+  const wdas = DATA.wdas.map(w => fixInverted(feat(w.g, w)));
+  const dists = DIST.map(d => fixInverted(feat(d.g, d)));
+  const dmeta = d => `${d.t || 'District'} · ${d.p ? d.p + ', ' : ''}${COUNTRY[d.c] || ''}`;
+  const kaza = {type: 'FeatureCollection', features: DATA.kaza.map(r => feat([r], {}))};
+
+  const svg = d3.select('#map');
+  const g = svg.append('g');
+  const proj = d3.geoMercator();
+  const path = d3.geoPath(proj);
+  const tip = document.getElementById('tip');
+  const box = document.querySelector('.mapbox');
+
+  function fit() {
+    const r = svg.node().getBoundingClientRect();
+    svg.attr('viewBox', `0 0 ${r.width} ${r.height}`);
+    proj.fitExtent([[12, 12], [r.width - 12, r.height - 12]], kaza);
+    g.selectAll('path').attr('d', path);
+  }
+  g.append('g').selectAll('path').data(areas).join('path').attr('class', 'area').attr('data-id', d => d.properties.id)
+    .on('click', (e, d) => { if (mode === 'area') toggle(d.properties.id); })
+    .on('mousemove', (e, d) => showTip(e, d.properties.n, `${d.properties.t || 'area'} · ${COUNTRY[d.properties.c] || ''}`))
+    .on('mouseleave', hideTip);
+  g.append('g').selectAll('path').data(dists).join('path').attr('class', 'dist').attr('data-id', d => d.properties.id)
+    .on('click', (e, d) => { if (mode === 'dist') toggleDist(d.properties.id); })
+    .on('mousemove', (e, d) => showTip(e, d.properties.n, dmeta(d.properties)))
+    .on('mouseleave', hideTip);
+  g.append('g').selectAll('path').data(wdas).join('path').attr('class', 'wda').attr('data-id', d => d.properties.id)
+    .on('click', (e, d) => { if (mode === 'wda') toggleWda(d.properties.id); })
+    .on('mousemove', (e, d) => showTip(e, d.properties.n + ' WDA', mode === 'wda' ? 'Click to select the whole WDA' : 'Wildlife Dispersal Area'))
+    .on('mouseleave', hideTip);
+  const gsel = g.append('g');   // selected areas drawn on top so they stay visible
+  g.append('g').selectAll('path').data(kaza.features).join('path').attr('class', 'kaza').style('pointer-events', 'none');
+
+  const zoom = d3.zoom().scaleExtent([1, 60]).on('zoom', e => g.attr('transform', e.transform));
+  svg.call(zoom).on('dblclick.zoom', null);
+  document.getElementById('zin').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1.8);
+  document.getElementById('zout').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.8);
+  document.getElementById('zreset').onclick = () => svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
+  function zoomTo(f) {
+    const r = svg.node().getBoundingClientRect(); const [[x0, y0], [x1, y1]] = path.bounds(f);
+    const k = Math.min(40, 0.7 / Math.max((x1 - x0) / r.width, (y1 - y0) / r.height));
+    svg.transition().duration(450).call(zoom.transform, d3.zoomIdentity.translate(r.width / 2, r.height / 2).scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2));
+  }
+
+  function showTip(e, title, sub) {
+    const r = box.getBoundingClientRect();
+    tip.replaceChildren(); const b = document.createElement('b'); b.textContent = title; const s = document.createElement('span'); s.textContent = sub; tip.append(b, s);
+    tip.hidden = false;
+    let x = e.clientX - r.left + 14, y = e.clientY - r.top + 14;
+    if (x + tip.offsetWidth > r.width - 8) x = e.clientX - r.left - tip.offsetWidth - 14;
+    tip.style.left = Math.max(8, x) + 'px'; tip.style.top = y + 'px';
+  }
+  function hideTip() { tip.hidden = true; }
+
+  function toggle(id) { sel.has(id) ? sel.delete(id) : sel.add(id); render(); }
+  function toggleDist(id) { dsel.has(id) ? dsel.delete(id) : dsel.add(id); render(); }
+  function toggleWda(id) { wsel.has(id) ? wsel.delete(id) : wsel.add(id); render(); }
+
+  function setMode(m) {
+    mode = m;
+    document.getElementById('m-area').setAttribute('aria-pressed', m === 'area');
+    document.getElementById('m-wda').setAttribute('aria-pressed', m === 'wda');
+    document.getElementById('m-dist').setAttribute('aria-pressed', m === 'dist');
+    svg.classed('mode-wda', m === 'wda'); svg.classed('mode-dist', m === 'dist');
+  }
+  document.getElementById('m-area').onclick = () => setMode('area');
+  document.getElementById('m-wda').onclick = () => setMode('wda');
+  document.getElementById('m-dist').onclick = () => setMode('dist');
+
+  const whole = document.getElementById('wholekaza');
+  whole.onchange = render;
+
+  // search
+  const q = document.getElementById('q'), res = document.getElementById('results');
+  q.addEventListener('input', () => {
+    const t = q.value.trim().toLowerCase(); res.replaceChildren();
+    d3.selectAll('.area').classed('hl', false);
+    if (t.length < 2) { res.hidden = true; return; }
+    const dh = DIST.filter(d => (d.n + ' ' + d.t + ' ' + d.p).toLowerCase().includes(t)).slice(0, 8);
+    dh.forEach(d => {
+      const b = document.createElement('button'); b.type = 'button';
+      const l = document.createElement('span'); l.textContent = (dsel.has(d.id) ? '✓ ' : '') + d.n;
+      const s = document.createElement('small'); s.textContent = dmeta(d);
+      b.append(l, s);
+      b.onclick = () => { if (!dsel.has(d.id)) toggleDist(d.id); setMode('dist'); zoomTo(dists.find(f => f.properties.id === d.id)); res.hidden = true; q.value = ''; };
+      res.append(b);
+    });
+    const hits = DATA.areas.filter(a => (a.n + ' ' + a.t + ' ' + a.id).toLowerCase().includes(t)).slice(0, 30);
+    if (!hits.length && !dh.length) { const e = document.createElement('button'); e.disabled = true; e.textContent = 'No area found. If it is not on the map, add it in the survey under "areas not in the lists".'; res.append(e); }
+    hits.forEach(a => {
+      const b = document.createElement('button'); b.type = 'button';
+      const l = document.createElement('span'); l.textContent = (sel.has(a.id) ? '✓ ' : '') + a.n;
+      const s = document.createElement('small'); s.textContent = `${a.t || 'area'} · ${COUNTRY[a.c] || ''}`;
+      b.append(l, s);
+      b.onclick = () => { if (!sel.has(a.id)) toggle(a.id); setMode('area'); zoomTo(areas.find(f => f.properties.id === a.id)); res.hidden = true; q.value = ''; };
+      b.onmouseenter = () => d3.selectAll(`.area[data-id="${CSS.escape(a.id)}"]`).classed('hl', true);
+      b.onmouseleave = () => d3.selectAll('.area').classed('hl', false);
+      res.append(b);
+    });
+    res.hidden = false;
+  });
+  q.addEventListener('keydown', e => { if (e.key === 'Escape') { res.hidden = true; q.value = ''; } });
+
+  // survey link
+  const urlIn = document.getElementById('surveyurl');
+  urlIn.value = SITE.survey_url || '';
+  try { const v = localStorage.getItem('kaza_picker_survey'); if (v) urlIn.value = v; } catch (e) {}
+  urlIn.addEventListener('input', () => { try { localStorage.setItem('kaza_picker_survey', urlIn.value.trim()); } catch (e) {} render(); });
+
+  const isKobo = u => /kobotoolbox\.org|enketo/i.test(u);
+  const isS123 = u => /^https:\/\/survey123\.arcgis\.com\/share\/\w+/.test(u);
+  function buildUrl() {
+    const raw = urlIn.value.trim() || 'https://ee.kobotoolbox.org/x/YOUR-FORM-ID';
+    if (isKobo(raw)) return buildKobo(raw.split('?')[0].replace(/#.*$/, ''));
+    const base = raw.split('?')[0];
+    const p = [];
+    if (whole.checked) { p.push('field:whole_kaza=yes'); }
+    else {
+      p.push('field:whole_kaza=no');
+      if (wsel.size) p.push('field:loc_wdas=' + [...wsel].join(','));
+      const byC = {};
+      sel.forEach(id => { const a = byId.get(id); (byC[a.c] = byC[a.c] || []).push(id); });
+      const cs = [...new Set(Object.keys(byC).concat([...dsel].map(id => dById.get(id).c)))].filter(c => COUNTRY[c]);
+      if (cs.length) p.push('field:loc_countries=' + cs.join(','));
+      Object.keys(byC).filter(c => COUNTRY[c]).forEach(c => p.push(`field:areas_${c}=` + byC[c].join(',')));
+      if (dsel.size) p.push('field:loc_districts=' + [...dsel].join(','));
+      p.push('field:has_new=no');
+    }
+    return base + '?' + p.map(s => s.replace(/ /g, '%20')).join('&');
+  }
+
+  // KoboToolbox (Enketo): ?d[question]=value; several choices are separated by spaces
+  function buildKobo(base) {
+    const p = []; const add = (k, v) => p.push('d[' + k + ']=' + encodeURIComponent(v));
+    if (whole.checked) add('whole_kaza', 'yes');
+    else {
+      add('whole_kaza', 'no');
+      if (wsel.size) add('loc_wdas', [...wsel].join(' '));
+      const byC = {};
+      sel.forEach(id => { const a = byId.get(id); (byC[a.c] = byC[a.c] || []).push(id); });
+      const cs = [...new Set(Object.keys(byC).concat([...dsel].map(id => dById.get(id).c)))].filter(c => COUNTRY[c]);
+      if (cs.length) add('loc_countries', cs.join(' '));
+      Object.keys(byC).filter(c => COUNTRY[c]).forEach(c => add('areas_' + c, byC[c].join(' ')));
+      if (dsel.size) add('loc_districts', [...dsel].join(' '));
+      add('has_new', 'no');
+    }
+    return base + '?' + p.join('&');
+  }
+
+  function render() {
+    d3.selectAll('.area').classed('on', d => sel.has(d.properties.id));
+    gsel.selectAll('path').data(areas.filter(f => sel.has(f.properties.id)), d => d.properties.id).join('path').attr('class', 'picked').attr('d', path);
+    d3.selectAll('.wda').classed('on', d => wsel.has(d.properties.id));
+    d3.selectAll('.dist').classed('on', d => dsel.has(d.properties.id));
+    svg.style('opacity', whole.checked ? .55 : 1);
+    const basket = document.getElementById('basket'); basket.replaceChildren();
+    const items = [...wsel].map(id => ({id, n: DATA.wdas.find(w => w.id === id).n + ' WDA', meta: 'Whole WDA', w: true}))
+      .concat([...dsel].map(id => { const d = dById.get(id); return {id, n: d.n, meta: dmeta(d), d: true}; }))
+      .concat([...sel].map(id => { const a = byId.get(id); return {id, n: a.n, meta: `${a.t || 'area'} · ${COUNTRY[a.c] || ''}`}; }));
+    if (whole.checked) { const e = document.createElement('div'); e.className = 'empty'; e.textContent = 'Whole of KAZA selected. Any areas below will be ignored.'; basket.append(e); }
+    if (!items.length && !whole.checked) { const e = document.createElement('div'); e.className = 'empty'; e.textContent = 'Nothing selected yet. Click areas on the map, or search above it.'; basket.append(e); }
+    items.forEach(it => {
+      const c = document.createElement('div'); c.className = 'chip';
+      const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = it.n;
+      const meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = it.meta + ' · ';
+      const idn = document.createElement('span'); idn.className = 'id'; idn.textContent = it.id; meta.append(idn);
+      const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.setAttribute('aria-label', 'Remove ' + it.n);
+      x.onclick = () => { (it.w ? wsel : it.d ? dsel : sel).delete(it.id); render(); };
+      c.append(nm, x, meta); basket.append(c);
+    });
+    const n = sel.size + wsel.size + dsel.size;
+    document.getElementById('n').textContent = whole.checked ? '· whole of KAZA' : `· ${n} ${n === 1 ? 'area' : 'areas'}`;
+    const ok = whole.checked || n > 0; const hasUrl = isS123(urlIn.value.trim()) || /^https:\/\/\S*kobotoolbox\.org\/\S+/.test(urlIn.value.trim());
+    const url = buildUrl(); const go = document.getElementById('go');
+    go.setAttribute('aria-disabled', ok && hasUrl ? 'false' : 'true'); go.href = ok && hasUrl ? url : '#';
+    document.getElementById('gohint').textContent = ok
+      ? (hasUrl ? 'Opens the survey in a new tab with your areas filled in. You can still add areas that are not on the map there.' : 'Survey address not set yet: add it under “Survey link” below.')
+      : 'Select at least one area, district or WDA, or tick “whole of KAZA”.';
+    if (ok && !hasUrl) document.getElementById('setup').open = true;
+    document.getElementById('url').textContent = url;
+  }
+
+  document.getElementById('copy').onclick = async () => {
+    const t = document.getElementById('url').textContent;
+    try { await navigator.clipboard.writeText(t); document.getElementById('copy').textContent = 'Copied'; }
+    catch (e) { const r = document.createRange(); r.selectNodeContents(document.getElementById('url')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+    setTimeout(() => document.getElementById('copy').textContent = 'Copy link', 1500);
+  };
+
+  fit(); render();
+  if (urlIn.value) document.getElementById('setup').open = false;
+  new ResizeObserver(() => fit()).observe(svg.node());
+}).catch(e => { document.querySelector('.mapbox').insertAdjacentHTML('afterbegin', '<p style="padding:12px">The map data could not be loaded. Please reload the page.</p>'); console.error(e); });
+</script>
+</body>
+</html>

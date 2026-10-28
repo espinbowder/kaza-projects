@@ -1,0 +1,8 @@
+{
+  "kobo_server": "https://kf.kobotoolbox.org",
+  "kobo_asset_uid": "",
+  "wda_min_share": 0.02,
+  "grid_km": 1.0,
+  "display_tolerance": 0.004,
+  "country_min_share": 0.05
+}
