@@ -20,7 +20,7 @@ GitHub Pages website (docs/):  index.html = dashboard,  picker.html = map picker
 | Folder / file | What it is | Who changes it |
 |---|---|---|
 | `docs/index.html` | The dashboard (map, filters, charts, project list) | rarely |
-| `docs/picker.html` | Map picker: people click their areas, then continue to the survey with the areas filled in | rarely |
+| `docs/picker.html` | Map picker: people click areas, districts or WDAs, draw or upload areas, and get a location code for the survey | rarely |
 | `docs/site.json` | The survey link the picker opens | you, once |
 | `docs/data/` | Data the website reads. **Rebuilt automatically**, don't edit by hand | the update script |
 | `data/seed/` | The 187 projects from the 2021–2024 survey (starting data) | you, if a correction is needed |
@@ -37,6 +37,7 @@ GitHub Pages website (docs/):  index.html = dashboard,  picker.html = map picker
 - **WDAs:** whole KAZA → all six WDAs. A whole WDA ticked → only that WDA, even where WDA outlines overlap. Listed and drawn areas → a WDA counts when at least 2% of the project's area lies in it. For the starting data, the shapes drawn for KAZA_Projects_24 decide.
 - **Countries:** what people report, plus the country of every listed area or district they choose. The map (country segments) is only used where no country is given, i.e. drawn or uploaded areas and whole WDAs, and a country counts from 5% of that area (`country_min_share` in `config.json`), so small border differences between layers don't add a country.
 - **Districts:** admin level 2 (Namibia: constituencies) can be chosen as whole units in the picker ("Districts" view) and the survey. They count like listed areas (2% WDA rule). Districts with less than 100 km² inside KAZA are left out as edge slivers, except the towns Victoria Falls, Hwange Urban, Rundu Urban and Katima Mulilo Urban.
+- **Locations (location code):** people choose areas, districts or whole WDAs on the map picker, and draw or upload areas that are not on the map (GeoJSON, KML/KMZ or a zipped shapefile in WGS 84 or Web Mercator; shapes are simplified to about 100 m). The picker turns this into a *location code* (`KAZA-LOC1 | summary | data`) that is pasted into the survey, or passed along automatically when people start from the map. The update script decodes it; drawn and uploaded areas appear in `reports/candidate_areas.geojson` for review. People who cannot use the map answer the list questions instead.
 - **Funding:** German Government is the funder; KfW, BMZ, GIZ, IKI, BMBF and BENGO are channels. If someone enters KfW as the funder, it is recorded as German Government via KfW.
 - **Amounts:** 0 means "no answer".
 - **Publishing:** only submissions that are **Approved** in KoboToolbox **and** where the submitter said the project may be shown publicly. Contact names and e-mails are never copied into this repository.
