@@ -38,8 +38,9 @@ GitHub Pages website (docs/):  index.html = dashboard,  picker.html = map picker
 - **Countries:** what people report, plus the country of every listed area or district they choose. The map (country segments) is only used where no country is given, i.e. drawn or uploaded areas and whole WDAs, and a country counts from 5% of that area (`country_min_share` in `config.json`), so small border differences between layers don't add a country.
 - **Districts:** admin level 2 (Namibia: constituencies) can be chosen as whole units in the picker ("Districts" view) and the survey. They count like listed areas (2% WDA rule). Districts with less than 100 km² inside KAZA are left out as edge slivers, except the towns Victoria Falls, Hwange Urban, Rundu Urban and Katima Mulilo Urban.
 - **Locations (location code):** people choose areas, districts or whole WDAs on the map picker, and draw or upload areas that are not on the map (GeoJSON, KML/KMZ or a zipped shapefile in WGS 84 or Web Mercator; shapes are simplified to about 100 m). The picker turns this into a *location code* (`KAZA-LOC1 | summary | data`) that is pasted into the survey, or passed along automatically when people start from the map. The update script decodes it; drawn and uploaded areas appear in `reports/candidate_areas.geojson` for review. People who cannot use the map answer the list questions instead.
+- **Map outlines:** each project's areas are merged into one clean outline for the map (overlapping and touching parts dissolved, gaps narrower than 250 m closed, separate pieces and holes smaller than 2 km² removed; a project that is only a small site keeps its largest piece). This uses Shapely, which the workflow installs. The thresholds can be changed in `config.json` (`gap_close_m`, `min_piece_km2`). Only the outline changes: the list of areas, and the WDA and country counts, are not affected.
 - **Funding:** German Government is the funder; KfW, BMZ, GIZ, IKI, BMBF and BENGO are channels. If someone enters KfW as the funder, it is recorded as German Government via KfW.
-- **Amounts:** 0 means "no answer".
+- **Amounts:** in the starting data (from Survey123, which stores an unanswered number as 0) a budget or amount of 0 means "no answer". KoboToolbox leaves unanswered numbers empty, and the form only accepts amounts above zero, so this does not arise for new submissions.
 - **Publishing:** only submissions that are **Approved** in KoboToolbox **and** where the submitter said the project may be shown publicly. Contact names and e-mails are never copied into this repository.
 
 ## Step-by-step setup (all in the web browser)
@@ -92,7 +93,7 @@ GitHub Pages website (docs/):  index.html = dashboard,  picker.html = map picker
 ## Running it on your own computer (optional)
 
 ```
-pip install numpy
+pip install numpy shapely
 python scripts/update.py                     # starting data only (or Kobo if KOBO_TOKEN is set)
 python scripts/update.py --kobo-file x.json  # test with a saved KoboToolbox download
 cd docs && python -m http.server              # then open http://localhost:8000
