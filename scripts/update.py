@@ -11,6 +11,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from kazageo import Grid, rings_of, simplify, merge
 import kobo
+import dissolve
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CFG = json.load(open(os.path.join(ROOT, 'config.json')))
@@ -92,13 +93,20 @@ CMASK = {c: G.mask(rings_of(g)) for c, g in csegs.items()}
 
 links = {}
 for r in T['project_areas']: links.setdefault(r['project_id'], []).append(r['area_id'])
-wda_rows, geo_of, countries_of, outside = [], {}, {}, {}
+wda_rows, geo_of, countries_of, outside, area_of, DSTATS = [], {}, {}, {}, {}, {}
 for p in T['projects']:
     pid = p['project_id']; ids = links.get(pid, [])
     parts = [i for i in ids if i not in WDA and i != 'KAZA']
     seed = pid in FOOT
     # display geometry: the curated footprint for seed projects, otherwise the chosen areas put together
-    geo_of[pid] = FOOT.get(pid) or merge([AGEOM.get(i) or (NEW_AREAS.get(i) or {}).get('geometry') for i in ids])
+    raw = FOOT.get(pid) or merge([AGEOM.get(i) or (NEW_AREAS.get(i) or {}).get('geometry') for i in ids])
+    geo_of[pid] = raw
+    # one clean outline for the map: merge overlapping/touching parts, close thin gaps, drop tiny pieces and holes
+    if raw and dissolve.HAVE_SHAPELY and 'KAZA' not in ids:
+        try:
+            geo_of[pid], area_of[pid] = dissolve.clean_outline([raw], CFG.get('gap_close_m', 250), CFG.get('min_piece_km2', 2.0), DSTATS)
+        except Exception as e:                      # keep the uncleaned outline rather than stopping the whole update
+            DSTATS['failed'] = DSTATS.get('failed', 0) + 1; print(f'  outline clean-up failed for {pid}: {e.__class__.__name__}: {e}')
     # mask used for the 2% rule: listed + new areas (not whole WDAs / whole KAZA)
     # seed projects: the curated footprint (the shape drawn for KAZA_Projects_24) decides
     masks = ([G.mask(rings_of(FOOT[pid]))] if FOOT.get(pid) else []) if seed else [amask(i) for i in parts if amask(i) is not None]
@@ -173,6 +181,7 @@ for p in published:
         'countries': '; '.join(countries_of.get(pid, [])),
         'wdas': '; '.join(WDA[k] for k in WDA if k in counted) or ('Outside WDAs' if geo_of.get(pid) else ''),
         'scale': scale, 'larger_programme': p.get('larger_programme') or None, 'source': p.get('source', ''),
+        'map_area_km2': area_of.get(pid),
     }
     for k in WDA: props['wda_' + k[2:].lower()] = 1 if k in counted else 0
     for t in THEMES: props['theme_' + t] = 1 if t in th else 0
@@ -232,6 +241,12 @@ if kobo_info['used']:
         lines += [f'| {i["project_id"][1:]} | {i["issue"]} |' for i in pending_issues]
 else:
     lines += ['KoboToolbox not connected (no KOBO_TOKEN secret or no kobo_asset_uid in config.json): starting data only.']
+if dissolve.HAVE_SHAPELY:
+    lines += ['', f'Map outlines cleaned for {DSTATS.get("projects", 0)} projects: {DSTATS.get("pieces_merged", 0)} overlapping or touching parts merged, '
+              f'{DSTATS.get("pieces_removed", 0)} small pieces and {DSTATS.get("holes_removed", 0)} small holes removed'
+              + (f'; clean-up failed for {DSTATS["failed"]} (their outlines were kept as they are).' if DSTATS.get('failed') else '.')]
+else:
+    lines += ['', 'Shapely is not installed, so map outlines were not merged or cleaned.']
 summary = '\n'.join(lines)
 print(summary)
 if os.environ.get('GITHUB_STEP_SUMMARY'):
