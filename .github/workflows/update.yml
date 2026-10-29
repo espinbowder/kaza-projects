@@ -27,8 +27,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install numpy
-        run: pip install numpy
+      - name: Install numpy and Shapely
+        run: pip install numpy "shapely>=2.0"
 
       - name: Rebuild the data
         env:
