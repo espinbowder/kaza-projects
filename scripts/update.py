@@ -70,8 +70,8 @@ if subs is not None:
     status = lambda s: (s.get('_validation_status') or {}).get('uid', '')
     approved = [s for s in subs if status(s) == 'validation_status_approved']
     waiting = [s for s in subs if status(s) in ('', 'validation_status_on_hold')]
-    K, issues = kobo.to_tables(approved, ORGS, AREAS, CFG.get('kobo_server'), os.environ.get('KOBO_TOKEN'))
-    _, pending_issues = kobo.to_tables(waiting, ORGS, AREAS, fetch_files=False)
+    K, issues = kobo.to_tables(approved, ORGS, AREAS, CFG.get('kobo_server'), os.environ.get('KOBO_TOKEN'), fx=CFG.get('fx_to_usd'))
+    _, pending_issues = kobo.to_tables(waiting, ORGS, AREAS, fetch_files=False, fx=CFG.get('fx_to_usd'))
     for k in T: T[k] += K[k]
     for a in K['new_areas']: NEW_AREAS[a['area_id']] = a
     kobo_info = {'used': True, 'submissions': len(subs), 'approved': len(approved), 'waiting_for_review': len(waiting),
@@ -149,7 +149,10 @@ def area_name(i):
     if i == 'KAZA': return 'Whole KAZA TFCA'
     if i in WDA: return WDA[i] + ' WDA'
     return (AREAS.get(i) or NEW_AREAS.get(i) or {}).get('name', i)
+STATUS_LABEL = {'1': 'Pipeline', '5': 'Cancelled', '6': 'Suspended'}    # IATI ActivityStatus codes that override the date rule
 def status(p):
+    if p.get('iati_status') in STATUS_LABEL: return STATUS_LABEL[p['iati_status']]
+    if p.get('iati_status') == '4': return 'Expired'                     # closed
     end = p.get('end_date') or ''
     if p.get('end_type') == 'ongoing' or not end: return 'Active'          # agreed rule: no end date = active
     return 'Active' if end[:10] >= TODAY else 'Expired'
@@ -182,6 +185,12 @@ for p in published:
         'wdas': '; '.join(WDA[k] for k in WDA if k in counted) or ('Outside WDAs' if geo_of.get(pid) else ''),
         'scale': scale, 'larger_programme': p.get('larger_programme') or None, 'source': p.get('source', ''),
         'map_area_km2': area_of.get(pid),
+        # IATI-compatible fields (v4 survey; empty for the starting data)
+        'iati_status': p.get('iati_status') or None, 'iati_identifiers': p.get('iati_ids') or None, 'funder_refs': p.get('funder_refs') or None,
+        'parent_programme_id': p.get('larger_id') or None, 'end_date_original': (p.get('end_original') or '')[:10] or None,
+        'budget_currency': p.get('budget_currency') or None, 'budget_original': p.get('budget_original'), 'budget_scope': p.get('budget_scope') or None,
+        'rio_biodiversity': p.get('rio_biodiversity') or None, 'rio_adaptation': p.get('rio_adaptation') or None,
+        'rio_mitigation': p.get('rio_mitigation') or None, 'rio_desertification': p.get('rio_desertification') or None,
     }
     for k in WDA: props['wda_' + k[2:].lower()] = 1 if k in counted else 0
     for t in THEMES: props['theme_' + t] = 1 if t in th else 0
@@ -194,7 +203,8 @@ def dump(name, obj):
 dump('kaza_projects.geojson', {'type': 'FeatureCollection', 'name': 'kaza_projects', 'features': features})
 pub_ids = {p['project_id'] for p in published}
 dump('tables.json', {
-    'funding': [{'project_id': f['project_id'], 'funder': f['funder_name'], 'channel': f.get('channel') or '', 'amount_usd': f['amount_usd'], 'type': f.get('type', '')}
+    'funding': [{'project_id': f['project_id'], 'funder': f['funder_name'], 'channel': f.get('channel') or '', 'amount_usd': f['amount_usd'], 'type': f.get('type', ''),
+                 'amount_original': f.get('amount_original'), 'currency': f.get('currency') or '', 'iati_finance_type': f.get('iati_finance_type') or ''}
                 for f in T['funding'] if f['project_id'] in pub_ids],
     'organisations': [{'project_id': o['project_id'], 'org': o['org_name'], 'role': o['role']} for o in T['project_orgs'] if o['project_id'] in pub_ids],
     'wdas': [w for w in wda_rows if w['project_id'] in pub_ids],

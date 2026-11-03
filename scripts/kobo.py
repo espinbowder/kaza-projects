@@ -50,7 +50,7 @@ def _num(v):
         x = float(v)
     except (TypeError, ValueError):
         return None
-    return x if x > 0 else None          # agreed rule: 0 means "no answer"
+    return x if x > 0 else None          # Kobo leaves unanswered numbers empty and the form only accepts > 0; this is just a safety net
 
 
 def _norm_file(name):
@@ -92,7 +92,24 @@ def decode_location_code(text):
     return o
 
 
-def to_tables(submissions, orgs, areas, server=None, token=None, fetch_files=True):
+# IATI codes for the v4 answers (see forms/KAZA_Projects_Kobo_v4.xlsx, columns iati_code)
+IATI_STATUS = {'pipeline': '1', 'implementation': '2', 'finalisation': '3', 'closed': '4', 'cancelled': '5', 'suspended': '6'}
+IATI_FINANCE = {'grant': '110', 'loan': '421', 'reimb_grant': '422', 'equity': '510', 'guarantee': '1100'}
+IATI_ORGTYPE = {'government': '10', 'local_gov': '11', 'public': '15', 'ingo': '21', 'nngo': '22', 'rngo': '23', 'cbo': '24',
+                'multilateral': '40', 'foundation': '60', 'private': '70', 'academic': '80', 'other': '90'}
+IATI_SIGNIFICANCE = {'principal': '2', 'significant': '1', 'not_targeted': '0'}
+
+
+def to_usd(amount, currency, fx):
+    """Convert with the rates in config.json ("fx_to_usd": US dollars per unit). None when no rate is known."""
+    if amount is None: return None
+    cur = (currency or 'USD').upper()
+    if cur == 'USD': return amount
+    rate = (fx or {}).get(cur)
+    return round(amount * rate, 2) if rate else None
+
+
+def to_tables(submissions, orgs, areas, server=None, token=None, fetch_files=True, fx=None):
     """Kobo submissions -> dict of table rows + new-area shapes + review issues.
 
     orgs:  {org_id: name}; areas: {area_id: properties}
@@ -108,21 +125,39 @@ def to_tables(submissions, orgs, areas, server=None, token=None, fetch_files=Tru
         status = (raw.get('_validation_status') or {}).get('uid', '')
         lead = oname(s.get('submit_org'), s.get('submit_org_oth'))
         end_type = s.get('end_type') or ''
+        # money: amounts are in the reported currency (v4); v3 submissions are in USD
+        cur = ((s.get('currency_other') if s.get('currency') == 'other' else s.get('currency')) or 'USD').upper()
+        budget = _num(s.get('total_budget')) if s.get('budget_known') == 'yes' else None
+        share_amt = _num(s.get('landscape_share')) if s.get('budget_scope') == 'larger' else None
+        budget_usd, share_usd = to_usd(budget, cur, fx), to_usd(share_amt, cur, fx)
+        if budget and budget_usd is None: flag(pid, 'No exchange rate', f'{cur}: add a rate to "fx_to_usd" in config.json')
         T['projects'].append({
             'project_id': pid, 'title': (s.get('proj_title') or '').strip(), 'lead_org': lead,
+            'lead_org_type': IATI_ORGTYPE.get(s.get('submit_org_type') or '', ''),
             'start_date': s.get('start_date') or '', 'end_date': (s.get('end_date') or '') if end_type == 'date' else '', 'end_type': end_type,
-            'total_budget_usd': _num(s.get('total_budget')) if s.get('budget_known') == 'yes' else None,
-            'part_of_larger': s.get('part_larger') or '', 'larger_programme': s.get('larger_name') or '',
+            'end_original': (s.get('end_original') or '') if s.get('end_changed') == 'yes' else '',
+            'iati_status': IATI_STATUS.get(s.get('status') or '', ''),
+            # the figure used on the dashboard: the share for this landscape when the budget covers a larger programme
+            'total_budget_usd': share_usd if share_usd else budget_usd,
+            'budget_currency': cur if budget else '', 'budget_original': budget, 'budget_date': s.get('budget_date') or '',
+            'budget_scope': s.get('budget_scope') or '', 'landscape_share_original': share_amt, 'programme_budget_usd': budget_usd if s.get('budget_scope') == 'larger' else None,
+            'part_of_larger': s.get('part_larger') or '', 'larger_programme': s.get('larger_name') or '', 'larger_id': s.get('larger_id') or '',
+            'iati_published': s.get('iati_published') or '', 'iati_ids': '; '.join(x.strip() for x in (s.get('iati_ids') or s.get('iati_id') or '').split(';') if x.strip()),
+            'funder_refs': s.get('funder_refs') or '',
+            'rio_biodiversity': IATI_SIGNIFICANCE.get(s.get('rio_biodiversity') or '', ''), 'rio_adaptation': IATI_SIGNIFICANCE.get(s.get('rio_adaptation') or '', ''),
+            'rio_mitigation': IATI_SIGNIFICANCE.get(s.get('rio_mitigation') or '', ''), 'rio_desertification': IATI_SIGNIFICANCE.get(s.get('rio_desertification') or '', ''),
             'location_text': '', 'countries': ' '.join(set(_multi(s.get('loc_countries'))) | {n.get('na_country') for n in s.get('new_areas') or [] if n.get('na_country')}),
             'public_ok': s.get('public_ok') or '', 'source': 'KoboToolbox',
             'submitted': (s.get('_submission_time') or '')[:10], 'review_status': status,
-            'goal': s.get('proj_goal') or '', 'iati_id': s.get('iati_id') or '', 'doc_links': s.get('doc_links') or ''})
+            'goal': s.get('proj_goal') or '', 'doc_links': s.get('doc_links') or ''})
         # never copied: contact_name, contact_email (personal data)
         if not T['projects'][-1]['title']: flag(pid, 'Incomplete record', 'no title')
         if not s.get('start_date'): flag(pid, 'Start date missing')
         if end_type == 'date' and not s.get('end_date'): flag(pid, 'End date missing')
         if s.get('submit_org') == 'other': flag(pid, 'New organisation', f'lead: {lead}')
         if s.get('public_ok') != 'yes': flag(pid, 'No consent to publish')
+        if s.get('budget_scope') == 'larger' and not share_amt: flag(pid, 'Budget covers a larger programme', 'no share for this landscape given; the whole programme budget is shown')
+        if s.get('status') in ('cancelled', 'suspended'): flag(pid, f'Project {s.get("status")}')
 
         for t in _multi(s.get('themes')):
             T['project_themes'].append({'project_id': pid, 'theme_id': t})
@@ -149,22 +184,24 @@ def to_tables(submissions, orgs, areas, server=None, token=None, fetch_files=Tru
             # amount: "All of it" = the whole project budget; "Part of it" = the amount typed; "Not known" = blank
             share = f.get('fund_share') or ''
             if share == 'all':
-                amount, basis = T['projects'][-1]['total_budget_usd'], 'Whole budget (answered "All of it")'
+                orig, basis = budget, 'Whole budget (answered "All of it")'
             elif share == 'unknown':
-                amount, basis = None, 'Not known or not shared'
+                orig, basis = None, 'Not known or not shared'
             else:
-                amount, basis = _num(f.get('fund_amount')), 'Reported in the survey'
+                orig, basis = _num(f.get('fund_amount')), 'Reported in the survey'
             T['funding'].append({'project_id': pid, 'funder_id': fid if fid not in ('other', 'undisclosed') else '',
                                  'funder_name': oname(fid, f.get('funder_oth')), 'channel': oname(ch, f.get('channel_oth')) if ch else '',
-                                 'amount_usd': amount, 'type': f.get('fund_type') or '', 'basis': basis})
+                                 'funder_type': IATI_ORGTYPE.get(f.get('funder_oth_type') or '', ''), 'channel_type': IATI_ORGTYPE.get(f.get('channel_oth_type') or '', ''),
+                                 'amount_original': orig, 'currency': cur if orig else '', 'amount_usd': to_usd(orig, cur, fx),
+                                 'type': f.get('fund_type') or '', 'iati_finance_type': IATI_FINANCE.get(f.get('fund_type') or '', ''), 'basis': basis})
             if fid == 'other': flag(pid, 'New organisation', f'funder: {f.get("funder_oth")}')
             if ch == 'other': flag(pid, 'New organisation', f'channel: {f.get("channel_oth")}')
-        fsum = sum(x['amount_usd'] or 0 for x in T['funding'] if x['project_id'] == pid)
-        b = T['projects'][-1]['total_budget_usd']
+        fsum = sum(x['amount_original'] or 0 for x in T['funding'] if x['project_id'] == pid)
+        b = budget
         if b and fsum > b * 1.001: flag(pid, 'Funding exceeds total budget', f'{fsum:,.0f} > {b:,.0f}')
         n_all = sum(1 for f in s.get('funding') or [] if f.get('fund_share') == 'all')
         if n_all > 1: flag(pid, 'Several funders give "all of the budget"', f'{n_all} funders answered "All of it"')
-        if b and b > 100_000_000: flag(pid, 'Very large budget', f'{b:,.0f}')
+        if budget_usd and budget_usd > 100_000_000: flag(pid, 'Very large budget', f'USD {budget_usd:,.0f}')
 
         # ---- locations: the code from the map picker, or (without the map) the list questions ----
         try:
