@@ -369,11 +369,15 @@ Promise.all(['data/kaza_projects.geojson', 'data/tables.json', 'data/map_layers.
     const row = (k, v) => { if (!v) return; const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v; dl.append(dt, dd); };
     row('Lead organisation', p.lead_org);
     row('Period', `${p.start_date || '?'} to ${p.end_date || 'ongoing / not given'}`);
-    row('Total budget', p.budget_usd ? 'USD ' + Math.round(p.budget_usd).toLocaleString('en') : 'Not disclosed');
+    row('Total budget', p.budget_usd ? 'USD ' + Math.round(p.budget_usd).toLocaleString('en') : (p.budget_original ? 'Not converted to USD yet' : 'Not disclosed'));
     row('Funders', p.donors);
     row('Primary partners', p.primary_partners); row('Local partners', p.local_partners);
     row('Themes', p.themes); row('Areas', p.areas); row('Countries', p.countries); row('WDAs', p.wdas);
-    row('Part of', p.larger_programme); row('Source', p.source); row('Project ID', p.project_id);
+    row('Part of', p.larger_programme + (p.parent_programme_id ? ` (${p.parent_programme_id})` : ''));
+    if (p.budget_currency && p.budget_currency !== 'USD' && p.budget_original) row('Budget as reported', `${p.budget_currency} ${Math.round(p.budget_original).toLocaleString('en')}` + (p.budget_scope === 'larger' ? ' (whole programme; the figure above is the KAZA share where known)' : ''));
+    if (p.end_date_original) row('Original end date', p.end_date_original);
+    row('IATI identifiers', p.iati_identifiers); row("Funders' project numbers", p.funder_refs);
+    row('Source', p.source); row('Project ID', p.project_id);
     b.append(h, st, dl); showWin();
   }
   // ---- the details window: movable and resizable; its size and place are remembered in this browser ----
