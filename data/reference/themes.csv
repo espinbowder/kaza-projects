@@ -1,15 +1,15 @@
-theme_id,label
-wildlife,Wildlife & Conservation Areas
-cbnrm,CBNRM
-livelihoods,Livelihoods
-dev_invest,Development & Investments
-fisheries,Fisheries
-forestry,Forestry
-freshwater,Fresh water
-research,Research & Monitoring
-sust_agric,Sustainable agriculture
-tourism,Tourism
-governance,Governance & institutions
-hwc,Human-wildlife conflict
-law_enf,Law enforcement & wildlife crime
-other,Other
+theme_id,label,dac_codes
+wildlife,Wildlife & Conservation Areas,41030
+cbnrm,CBNRM,41030; 43040
+livelihoods,Livelihoods,43040
+dev_invest,Development & Investments,43040
+fisheries,Fisheries,31320; 31310
+forestry,Forestry,31220; 31210
+freshwater,Fresh water,14015
+research,Research & Monitoring,41082
+sust_agric,Sustainable agriculture,31120; 31163
+tourism,Tourism,33210
+governance,Governance & institutions,41010
+hwc,Human-wildlife conflict,41030
+law_enf,Law enforcement & wildlife crime,15130
+other,Other,
