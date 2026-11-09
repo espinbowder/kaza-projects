@@ -87,6 +87,15 @@ svg.map.mode-draw { cursor: crosshair; }
 .shape { fill: var(--pick); fill-opacity: .35; stroke: var(--pick-ink); stroke-width: 2; stroke-dasharray: 6 3; vector-effect: non-scaling-stroke; pointer-events: none; }
 .draft-line { fill: none; stroke: var(--pick-ink); stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
 .draft-fill { fill: var(--pick); fill-opacity: .2; stroke: none; pointer-events: none; }
+.handle { fill: var(--panel); stroke: var(--pick-ink); stroke-width: 2; vector-effect: non-scaling-stroke; cursor: move; }
+.handle:hover { fill: var(--pick); }
+.mid { fill: var(--pick-ink); fill-opacity: .55; stroke: var(--panel); stroke-width: 1; vector-effect: non-scaling-stroke; cursor: copy; }
+.mid:hover { fill-opacity: 1; }
+.shape.edit { fill-opacity: .2; stroke-dasharray: none; }
+.editing .area, .editing .dist, .editing .wda { pointer-events: none !important; }
+.review { display: grid; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.review textarea.code { height: 72px; }
+.chip .meta a + a { margin-left: 6px; }
 .vtx { fill: var(--panel); stroke: var(--pick-ink); stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
 .drawbar { position: absolute; z-index: 4; left: 12px; top: 64px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; max-width: calc(100% - 80px);
   background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; box-shadow: 0 6px 18px rgba(0,0,0,.14); font-size: .88rem; }
@@ -165,6 +174,12 @@ details input { width: 100%; box-sizing: border-box; font: inherit; font-size: .
         <button type="button" id="d-undo" disabled>Undo point</button>
         <button type="button" id="d-cancel">Cancel</button>
       </div>
+      <div class="drawbar" id="editbar" hidden>
+        <span id="edithint">Drag a corner to move it. Click or drag a small dot on an edge to add a corner. Double-click a corner to delete it.</span>
+        <button type="button" id="e-done" class="primary">Done</button>
+        <button type="button" id="e-undo" disabled>Undo</button>
+        <button type="button" id="e-cancel">Cancel changes</button>
+      </div>
       <svg class="map" id="map" role="img" aria-label="Clickable map of conservation areas in the KAZA TFCA"></svg>
       <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zreset" aria-label="Show all of KAZA">⤢</button></div>
       <div class="tip" id="tip" hidden></div>
@@ -179,6 +194,12 @@ details input { width: 100%; box-sizing: border-box; font: inherit; font-size: .
     </section>
 
     <aside>
+      <div class="review" id="reviewbox" hidden>
+        <h2>Check a submission</h2>
+        <label for="incode" class="count" style="font-size:.82rem">Paste the location code from the submission in KoboToolbox</label>
+        <textarea class="code" id="incode" spellcheck="false" placeholder="KAZA-LOC1 | … | …"></textarea>
+        <button type="button" class="btn secondary" id="loadcode">Show on map</button>
+      </div>
       <label class="check"><input type="checkbox" id="wholekaza"> <span><b>The project covers the whole of KAZA</b><br><span class="count">No need to select areas</span></span></label>
       <div>
         <h2>Your locations <span class="count" id="n">· nothing yet</span></h2>
@@ -222,6 +243,21 @@ const LOC = {
   PREC: 1e4,
   encNum(v) { v = v < 0 ? ~(v << 1) : (v << 1); let s = ''; while (v >= 0x20) { s += String.fromCharCode((0x20 | (v & 0x1f)) + 63); v >>= 5; } return s + String.fromCharCode(v + 63); },
   encRing(r) { let out = '', px = 0, py = 0; for (const [x, y] of r) { const ix = Math.round(x * this.PREC), iy = Math.round(y * this.PREC); out += this.encNum(ix - px) + this.encNum(iy - py); px = ix; py = iy; } return out; },
+  decRing(s) {
+    const out = []; let i = 0, x = 0, y = 0;
+    const num = () => { let r = 0, sh = 0, b; do { if (i >= s.length) throw new Error('cut off'); b = s.charCodeAt(i++) - 63; r |= (b & 0x1f) << sh; sh += 5; } while (b >= 0x20); return (r & 1) ? ~(r >> 1) : (r >> 1); };
+    while (i < s.length) { x += num(); y += num(); out.push([x / this.PREC, y / this.PREC]); }
+    return out;
+  },
+  unb64(s) { s = s.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/'); return decodeURIComponent(escape(atob(s + '='.repeat((4 - s.length % 4) % 4)))); },
+  // returns the data object, or throws with a readable message
+  decode(text) {
+    const t = (text || '').trim();
+    if (!/^KAZA-LOC1\s*\|/.test(t)) throw new Error('This is not a location code: it should start with “KAZA-LOC1 |”.');
+    let o; try { o = JSON.parse(this.unb64(t.slice(t.lastIndexOf('|') + 1))); } catch (e) { throw new Error('The location code is incomplete or damaged. Copy the whole text from KoboToolbox and try again.'); }
+    if (!o || o.v !== 1) throw new Error('This location code comes from a newer version of the picker.');
+    return o;
+  },
   b64(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); },
 };
 // Simplify a ring (Douglas-Peucker) to about 100 m: 0.0009 degrees
@@ -324,12 +360,16 @@ const READ = {
 
 Promise.all([getJSON('data/picker_areas.json'), getJSON('site.json').catch(e => { console.warn(e.message); return {}; })]).then(([DATA, SITE]) => {
   const FROM_FORM = new URLSearchParams(location.search).get('from') === 'form';   // opened from the link inside the survey
+  const REVIEW = new URLSearchParams(location.search).has('review');               // reviewer checks and corrects a submitted location code
   const COUNTRY = {angola: 'Angola', botswana: 'Botswana', namibia: 'Namibia', zambia: 'Zambia', zimbabwe: 'Zimbabwe'};
   const sel = new Set();        // area ids
   const dsel = new Set();       // district ids (admin level 2)
   const wsel = new Set();       // WDA ids
   let shapes = [];              // drawn or uploaded: {id, name, how, rings}
   let draft = [];               // points of the shape being drawn
+  let editing = null;           // shape whose corner points are being edited
+  let editOrig = null, editHist = [];
+  let loadedData = null;        // review mode: the data of the code that was pasted, to tell whether anything changed
   let mode = 'area';
   const DIST = DATA.districts || [];
   const dById = new Map(DIST.map(d => [d.id, d]));
@@ -339,6 +379,13 @@ Promise.all([getJSON('data/picker_areas.json'), getJSON('site.json').catch(e => 
   if (FROM_FORM) {
     $('intro').textContent = 'Choose the areas where your project works: click areas, districts or whole WDAs, or draw or upload areas that are not on the map. Then copy the location code and paste it into the survey, in the question “Location code”. Your survey stays open in the other tab.';
     $('steps').innerHTML = '<li><b>1</b> Click, draw or upload your areas</li><li><b>2</b> Copy the location code</li><li><b>3</b> Go back to the survey tab and paste it</li>';
+  }
+
+  if (REVIEW) {
+    document.querySelector('header h1').textContent = 'Check the locations of a submission';
+    $('intro').textContent = 'For the KAZA team: paste the location code from a submission to see it on the map. Correct it if needed (remove or add areas, rename, redraw, or move the corner points of a drawn or uploaded shape), then copy the corrected code back into the submission before approving it.';
+    $('steps').innerHTML = '<li><b>1</b> Paste the code and click “Show on map”</li><li><b>2</b> Correct the locations if needed</li><li><b>3</b> Copy the code, paste it into the submission (Edit), save, approve</li>';
+    $('reviewbox').hidden = false; $('setup').hidden = true;
   }
 
   // Shapefile outer rings are clockwise, which is what d3-geo expects; holes (counter-clockwise) are dropped for this overview map.
@@ -365,7 +412,7 @@ Promise.all([getJSON('data/picker_areas.json'), getJSON('site.json').catch(e => 
     svg.attr('viewBox', `0 0 ${r.width} ${r.height}`);
     proj.fitExtent([[12, 12], [r.width - 12, r.height - 12]], kaza);
     g.selectAll('path').attr('d', path);
-    renderDraft();
+    renderDraft(); if (editing) renderEdit();
   }
   g.append('g').selectAll('path').data(areas).join('path').attr('class', 'area').attr('data-id', d => d.properties.id)
     .on('click', (e, d) => { if (mode === 'area') toggle(d.properties.id); })
@@ -383,9 +430,10 @@ Promise.all([getJSON('data/picker_areas.json'), getJSON('site.json').catch(e => 
   const gshape = g.append('g');   // drawn and uploaded areas
   g.append('g').selectAll('path').data(kaza.features).join('path').attr('class', 'kaza').style('pointer-events', 'none');
   const gdraft = g.append('g');   // the shape being drawn
+  const gedit = g.append('g');    // corner points of the shape being edited
 
   let k = 1;
-  const zoom = d3.zoom().scaleExtent([1, 80]).on('zoom', e => { g.attr('transform', e.transform); k = e.transform.k; gdraft.selectAll('circle').attr('r', 4 / k); });
+  const zoom = d3.zoom().scaleExtent([1, 80]).on('zoom', e => { g.attr('transform', e.transform); k = e.transform.k; gdraft.selectAll('circle').attr('r', 4 / k); gedit.selectAll('circle.handle').attr('r', 5 / k); gedit.selectAll('circle.mid').attr('r', 3.5 / k); });
   svg.call(zoom).on('dblclick.zoom', null);
   $('zin').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1.8);
   $('zout').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.8);
@@ -414,6 +462,7 @@ Promise.all([getJSON('data/picker_areas.json'), getJSON('site.json').catch(e => 
   function toggleWda(id) { wsel.has(id) ? wsel.delete(id) : wsel.add(id); render(); }
 
   function setMode(m) {
+    if (editing) stopEdit(true);
     if (mode === 'draw' && m !== 'draw' && draft.length) { draft = []; renderDraft(); }
     mode = m;
     ['area', 'wda', 'dist', 'draw'].forEach(x => $('m-' + x).setAttribute('aria-pressed', m === x));
@@ -457,6 +506,77 @@ Promise.all([getJSON('data/picker_areas.json'), getJSON('site.json').catch(e => 
     if (e.key === 'Enter') finishDraft();
     if (e.key === 'Escape') { draft = []; renderDraft(); }
     if ((e.key === 'z' && (e.ctrlKey || e.metaKey)) || e.key === 'Backspace') { draft.pop(); renderDraft(); e.preventDefault(); }
+  });
+
+  // ---------- editing the corner points of a drawn or uploaded shape ----------
+  const copyRings = rs => rs.map(r => r.map(p => p.slice()));
+  const verts = r => r.slice(0, -1);                          // rings are stored closed; edit the open list of corners
+  const closeVerts = v => v.concat([v[0].slice()]);
+  const localPoint = e => proj.invert([e.x, e.y]);            // drag positions are in map units before zooming
+  function startEdit(s) {
+    if (editing) stopEdit(false);
+    if (mode === 'draw') { draft = []; renderDraft(); setMode('area'); }
+    editing = s; editOrig = copyRings(s.rings); editHist = [];
+    svg.classed('editing', true); $('editbar').hidden = false; hideTip();
+    render(); zoomTo(shapeFeature(s));
+  }
+  function stopEdit(keep) {
+    if (!editing) return;
+    if (!keep) editing.rings = editOrig;
+    editing = null; editOrig = null; editHist = [];
+    svg.classed('editing', false); $('editbar').hidden = true;
+    renderEdit(); render();
+  }
+  function snapshot() { editHist.push(copyRings(editing.rings)); if (editHist.length > 100) editHist.shift(); $('e-undo').disabled = false; }
+  function redrawShapes() { gshape.selectAll('path').data(shapes.map(shapeFeature), d => d.properties.id).attr('d', path); }
+  function renderEdit() {
+    const H = [], M = [];
+    if (editing) editing.rings.forEach((r, ri) => {
+      const v = verts(r);
+      v.forEach((p, vi) => {
+        const [x, y] = proj(p); H.push({ri, vi, x, y});
+        const q = v[(vi + 1) % v.length], [x2, y2] = proj(q);
+        M.push({ri, after: vi, x: (x + x2) / 2, y: (y + y2) / 2, ll: [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]});
+      });
+    });
+    gedit.selectAll('circle.mid').data(M).join('circle').attr('class', 'mid').attr('cx', d => d.x).attr('cy', d => d.y).attr('r', 3.5 / k).call(dragMid)
+      .on('click', (e, d) => { if (d.moved) return; snapshot(); const v = verts(editing.rings[d.ri]); v.splice(d.after + 1, 0, d.ll); editing.rings[d.ri] = closeVerts(v); redrawShapes(); renderEdit(); refreshCode(); });
+    gedit.selectAll('circle.handle').data(H).join('circle').attr('class', 'handle').attr('cx', d => d.x).attr('cy', d => d.y).attr('r', 5 / k).call(dragVertex)
+      .on('dblclick', (e, d) => { e.preventDefault(); e.stopPropagation(); deleteVertex(d); })
+      .on('contextmenu', (e, d) => { e.preventDefault(); deleteVertex(d); });
+    if (editing) $('edithint').textContent = 'Drag a corner to move it. Click or drag a small dot on an edge to add a corner. Double-click (or right-click) a corner to delete it.';
+  }
+  function moveVertex(d, ll) {
+    const v = verts(editing.rings[d.ri]); v[d.vi] = ll; editing.rings[d.ri] = closeVerts(v);
+    redrawShapes();
+    const [x, y] = proj(ll); d.x = x; d.y = y;
+  }
+  // the undo point is taken at the first movement, so a plain click or double-click changes nothing
+  const dragVertex = d3.drag()
+    .on('start', (e, d) => { d.moved = false; })
+    .on('drag', function (e, d) { if (!d.moved) { snapshot(); d.moved = true; } moveVertex(d, localPoint(e)); d3.select(this).attr('cx', d.x).attr('cy', d.y); })
+    .on('end', (e, d) => { if (d.moved) { renderEdit(); refreshCode(); } });
+  const dragMid = d3.drag()
+    .on('start', (e, d) => { d.moved = false; })
+    .on('drag', function (e, d) {
+      if (!d.moved) { snapshot(); d.moved = true; const v = verts(editing.rings[d.ri]); v.splice(d.after + 1, 0, d.ll); editing.rings[d.ri] = closeVerts(v); d.vi = d.after + 1; }
+      moveVertex(d, localPoint(e)); d3.select(this).attr('cx', d.x).attr('cy', d.y); })
+    .on('end', (e, d) => { if (d.moved) { renderEdit(); refreshCode(); } });
+  function deleteVertex(d) {
+    const v = verts(editing.rings[d.ri]);
+    if (v.length <= 3) { notice('A shape needs at least 3 corners. To remove the whole shape, use × next to its name.', true); return; }
+    snapshot(); v.splice(d.vi, 1); editing.rings[d.ri] = closeVerts(v);
+    redrawShapes(); renderEdit(); refreshCode();
+  }
+  function undoEdit() { if (!editHist.length) return; editing.rings = editHist.pop(); $('e-undo').disabled = !editHist.length; redrawShapes(); renderEdit(); refreshCode(); }
+  $('e-done').onclick = () => { stopEdit(true); notice('Changes kept.'); };
+  $('e-cancel').onclick = () => { stopEdit(false); notice('Changes undone.'); };
+  $('e-undo').onclick = undoEdit;
+  document.addEventListener('keydown', e => {
+    if (!editing || e.target.matches('input, textarea')) return;
+    if (e.key === 'Enter') { stopEdit(true); notice('Changes kept.'); }
+    if (e.key === 'Escape') { stopEdit(false); notice('Changes undone.'); }
+    if (e.key === 'z' && (e.ctrlKey || e.metaKey)) { undoEdit(); e.preventDefault(); }
   });
 
   // ---------- shapes (drawn or uploaded) ----------
@@ -580,7 +700,7 @@ Promise.all([getJSON('data/picker_areas.json'), getJSON('site.json').catch(e => 
 
   // remember the selection in this browser, so the map can be reopened and changed (e.g. to add another shape)
   const STORE = 'kaza_picker_state_v1';
-  function save() { try { localStorage.setItem(STORE, JSON.stringify({whole: whole.checked, a: [...sel], d: [...dsel], w: [...wsel], s: shapes})); } catch (e) {} }
+  function save() { if (REVIEW) return; try { localStorage.setItem(STORE, JSON.stringify({whole: whole.checked, a: [...sel], d: [...dsel], w: [...wsel], s: shapes})); } catch (e) {} }
   function restore() {
     try {
       const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (!s) return false;
@@ -590,12 +710,13 @@ Promise.all([getJSON('data/picker_areas.json'), getJSON('site.json').catch(e => 
       return sel.size + dsel.size + wsel.size + shapes.length > 0 || whole.checked;
     } catch (e) { return false; }
   }
-  $('restart').onclick = () => { sel.clear(); dsel.clear(); wsel.clear(); shapes = []; draft = []; whole.checked = false; renderDraft(); render(); notice('Cleared. You can start again.'); };
+  $('restart').onclick = () => { if (editing) stopEdit(true); loadedData = null; sel.clear(); dsel.clear(); wsel.clear(); shapes = []; draft = []; whole.checked = false; renderDraft(); render(); notice('Cleared. You can start again.'); };
 
   function render() {
     d3.selectAll('.area').classed('on', d => sel.has(d.properties.id));
     gsel.selectAll('path').data(areas.filter(f => sel.has(f.properties.id)), d => d.properties.id).join('path').attr('class', 'picked').attr('d', path);
-    gshape.selectAll('path').data(shapes.map(shapeFeature), d => d.properties.id).join('path').attr('class', 'shape').attr('d', path);
+    gshape.selectAll('path').data(shapes.map(shapeFeature), d => d.properties.id).join('path').attr('class', d => 'shape' + (editing && d.properties === editing ? ' edit' : '')).attr('d', path);
+    renderEdit();
     d3.selectAll('.wda').classed('on', d => wsel.has(d.properties.id));
     d3.selectAll('.dist').classed('on', d => dsel.has(d.properties.id));
     svg.style('opacity', whole.checked ? .55 : 1);
@@ -611,9 +732,11 @@ Promise.all([getJSON('data/picker_areas.json'), getJSON('site.json').catch(e => 
       nm.oninput = () => { s.name = nm.value.trim() || 'Unnamed area'; refreshCode(); };
       const meta = document.createElement('span'); meta.className = 'meta';
       const z = document.createElement('a'); z.href = '#'; z.textContent = 'show on map'; z.onclick = ev => { ev.preventDefault(); zoomTo(shapeFeature(s)); };
-      meta.append(`${s.how === 'drawn' ? 'Drawn' : 'From ' + s.how.replace(/^file /, '')} · about ${km2(shapeFeature(s)).toLocaleString('en')} km² · `, z);
+      const ed = document.createElement('a'); ed.href = '#'; ed.textContent = editing === s ? 'editing…' : 'edit corners';
+      ed.onclick = ev => { ev.preventDefault(); if (editing !== s) startEdit(s); };
+      meta.append(`${s.how === 'drawn' ? 'Drawn' : 'From ' + s.how.replace(/^file /, '')} · about ${km2(shapeFeature(s)).toLocaleString('en')} km² · `, z, ed);
       const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.setAttribute('aria-label', 'Remove ' + s.name);
-      x.onclick = () => { shapes = shapes.filter(t => t !== s); render(); };
+      x.onclick = () => { if (editing === s) stopEdit(true); shapes = shapes.filter(t => t !== s); render(); };
       c.append(nm, x, meta); basket.append(c);
     });
     items.forEach(it => {
@@ -638,11 +761,14 @@ Promise.all([getJSON('data/picker_areas.json'), getJSON('site.json').catch(e => 
     const raw = urlIn.value.trim(); const hasUrl = isS123(raw) || /^https:\/\/\S*kobotoolbox\.org\/\S+/.test(raw);
     const url = ok ? buildUrl(code) : ''; const tooLong = url.length > MAX_URL;
     const go = $('go');
-    go.hidden = FROM_FORM;
+    go.hidden = FROM_FORM || REVIEW;
     go.setAttribute('aria-disabled', ok && hasUrl && !tooLong ? 'false' : 'true'); go.href = ok && hasUrl && !tooLong ? url : '#';
     $('url').textContent = url || '—';
     let hint;
     if (!ok) hint = 'Select at least one area, district or WDA, draw or upload an area, or tick “whole of KAZA”.';
+    else if (REVIEW) hint = !loadedData ? 'Paste a location code above and click “Show on map”.'
+      : JSON.stringify(LOC.decode(code)) === JSON.stringify(loadedData) ? 'No changes yet: this is the same as the submitted code.'
+      : 'Changed. Copy the code, open the submission in KoboToolbox with Edit, replace the text in “Location code”, save, then set the validation status to Approved.';
     else if (FROM_FORM) hint = 'Copy the code, go back to the survey tab and paste it into the question “Location code”. You can come back here to change it; your selection is kept in this browser.';
     else if (!hasUrl) hint = 'Survey address not set yet: add it under “Survey link” below. You can still copy the location code.';
     else if (tooLong) hint = 'Your shapes are too detailed to send along automatically. Copy the location code, open the survey with the button below, and paste the code into the question “Location code”.';
@@ -651,7 +777,7 @@ Promise.all([getJSON('data/picker_areas.json'), getJSON('site.json').catch(e => 
     $('gohint').textContent = hint;
     if (tooLong && hasUrl && !FROM_FORM) { go.setAttribute('aria-disabled', 'false'); go.href = raw.split('?')[0]; go.textContent = 'Open the survey (then paste the code)'; }
     else go.textContent = 'Continue to the survey';
-    if (ok && !hasUrl && !FROM_FORM) $('setup').open = true;
+    if (ok && !hasUrl && !FROM_FORM && !REVIEW) $('setup').open = true;
     save();
   }
 
@@ -659,17 +785,45 @@ Promise.all([getJSON('data/picker_areas.json'), getJSON('site.json').catch(e => 
     const t = $('code').value; if (!t) return;
     try { await navigator.clipboard.writeText(t); }
     catch (e) { $('code').select(); document.execCommand && document.execCommand('copy'); }
-    $('copycode').textContent = 'Copied – now paste it into the survey';
+    $('copycode').textContent = REVIEW ? 'Copied – now paste it into the submission' : 'Copied – now paste it into the survey';
     setTimeout(() => $('copycode').textContent = 'Copy location code', 2500);
   };
 
+  // ---------- review: load a submitted location code ----------
+  function loadCode(text) {
+    let o; try { o = LOC.decode(text); } catch (e) { notice(e.message, true); return false; }
+    if (editing) stopEdit(true);
+    sel.clear(); dsel.clear(); wsel.clear(); shapes = []; draft = []; renderDraft(); nextId = 1;
+    whole.checked = !!o.k;
+    const unknown = [];
+    (o.w || []).forEach(x => DATA.wdas.some(w => w.id === x) ? wsel.add(x) : unknown.push(x));
+    (o.a || []).forEach(x => byId.has(x) ? sel.add(x) : unknown.push(x));
+    (o.d || []).forEach(x => dById.has(x) ? dsel.add(x) : unknown.push(x));
+    let bad = 0;
+    (o.s || []).forEach(s => {
+      let rings = []; try { rings = (s.p || []).map(r => closeRing(LOC.decRing(r))).filter(r => r.length >= 4); } catch (e) { bad++; return; }
+      if (rings.length) shapes.push({id: 'S' + nextId++, name: String(s.n || 'Unnamed area').slice(0, 80), how: s.h || 'drawn', rings}); else bad++;
+    });
+    loadedData = o;
+    render();
+    const all = areas.filter(f => sel.has(f.properties.id)).concat(dists.filter(f => dsel.has(f.properties.id)), wdas.filter(f => wsel.has(f.properties.id)), shapes.map(shapeFeature));
+    if (all.length && !whole.checked) zoomTo({type: 'FeatureCollection', features: all}); else svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
+    const msgs = [];
+    if (unknown.length) msgs.push(`Not on the map, so left out of the corrected code: ${unknown.join(', ')}.`);
+    if (bad) msgs.push(`${bad} shape${bad > 1 ? 's' : ''} could not be read.`);
+    if (msgs.length) loadedData = null;   // the code will differ from the submitted one
+    notice(msgs.length ? msgs.join(' ') : 'Locations of the submission shown on the map.', msgs.length > 0);
+    return true;
+  }
+  $('loadcode').onclick = () => loadCode($('incode').value);
+
   fit();
-  const restored = restore();
+  const restored = !REVIEW && restore();
   render();
   if (restored) notice('Your earlier selection in this browser has been restored. Use “Start again” to clear it.');
   if (urlIn.value || FROM_FORM) $('setup').open = false;
   new ResizeObserver(() => fit()).observe(svg.node());
-  window.__picker = {locationCode, addShapes, get shapes() { return shapes; }, sel, dsel, wsel};   // for testing
+  window.__picker = {locationCode, addShapes, loadCode, startEdit, stopEdit, get shapes() { return shapes; }, sel, dsel, wsel};   // for testing
 }).catch(e => showLoadError(p => document.querySelector('.mapbox').prepend(p), e));
 </script>
 </body>
