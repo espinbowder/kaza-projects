@@ -37,7 +37,7 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 var(--font); }
-.wrap { max-width: 1320px; margin: 0 auto; padding: 20px 16px 40px; }
+.wrap { margin: 0 auto; padding: 20px 20px 40px; }     /* full width of the window */
 header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin-bottom: 16px; }
 h1 { font-size: 26px; line-height: 1.2; margin: 0 0 4px; letter-spacing: -.01em; }
 header p { margin: 0; color: var(--muted); max-width: 70ch; }
@@ -56,17 +56,34 @@ header p { margin: 0; color: var(--muted); max-width: 70ch; }
 .seg button[aria-pressed="true"] { background: var(--brand); color: var(--on-brand); }
 .reset { font: inherit; font-size: 14px; border: 0; background: none; color: var(--ink); text-decoration: underline; cursor: pointer; padding: 6px 4px; }
 .count { color: var(--muted); font-size: 13px; margin-left: auto; }
-.main { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 14px; margin-bottom: 14px; }
+.main { --map-h: clamp(520px, 66vh, 900px); display: grid; grid-template-columns: minmax(0, var(--split, 60%)) 14px minmax(0, 1fr); margin-bottom: 14px; }
+/* the divider between the map and the project list: drag it (or use the arrow keys) to make the map wider; double-click to reset */
+.split { cursor: col-resize; touch-action: none; display: flex; justify-content: center; align-items: center; }
+.split::before { content: ''; width: 4px; height: 48px; border-radius: 2px; background: var(--line); transition: background .12s; }
+.split:hover::before, .split:focus-visible::before, .split.drag::before { background: var(--muted); height: 72px; }
+.split:focus-visible { outline: none; }
+body.resizing { cursor: col-resize; user-select: none; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; min-width: 0; }
 .card h2 { font-size: 15px; margin: 0 0 8px; }
 .card h2 small { font-weight: 400; color: var(--muted); }
 .mapbox { position: relative; padding: 0; overflow: hidden; }
 .mapbox h2 { padding: 12px 14px 0; }
-svg.map { display: block; width: 100%; height: 520px; touch-action: none; cursor: grab; background: var(--land); }
+svg.map { display: block; width: 100%; height: var(--map-h); touch-action: none; cursor: grab; background: var(--land); }
 .map .country { fill: none; stroke: var(--country); stroke-width: 1.2; vector-effect: non-scaling-stroke; pointer-events: none; }
 .map .wda { fill: none; stroke: var(--wda-line); stroke-width: 1.2; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; pointer-events: none; }
 .map .kaza { fill: none; stroke: var(--kaza); stroke-width: 1.4; vector-effect: non-scaling-stroke; pointer-events: none; opacity: .75; }
 .map .foot { fill: var(--foot); fill-opacity: .07; stroke: var(--foot); stroke-opacity: .35; stroke-width: .7; vector-effect: non-scaling-stroke; }
+.map .tiles image { pointer-events: none; }
+.map.bm-sat .kaza { stroke: #ffffff; opacity: .9; }
+.map.bm-sat .country { stroke: #ffffff; stroke-opacity: .75; }
+.map.bm-sat .wda { stroke: #8cc63f; }
+.map.bm-sat .foot { stroke: #f5d200; stroke-opacity: .6; fill: #f5d200; }
+.basemap { position: absolute; left: 10px; top: 44px; z-index: 3; display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--panel); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+.basemap button { font: inherit; font-size: 13px; border: 0; background: transparent; color: var(--ink); padding: 5px 9px; cursor: pointer; }
+.basemap button[aria-pressed="true"] { background: var(--brand); color: var(--on-brand); }
+.credit { margin-left: auto; font-size: 11.5px; }
+.credit a { color: inherit; }
+.credit:empty { display: none; }
 .map .foot.hl { fill: var(--pick); fill-opacity: .45; stroke: var(--pick); stroke-opacity: 1; stroke-width: 2; }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 8px 14px 10px; font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); }
 .legend i { display: inline-block; width: 16px; height: 10px; margin-right: 6px; vertical-align: -1px; border-radius: 2px; }
@@ -78,7 +95,7 @@ svg.map { display: block; width: 100%; height: 520px; touch-action: none; cursor
 .pop button:hover { background: var(--soft); }
 .tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: var(--panel); padding: 6px 9px; border-radius: 6px; font-size: 13px; max-width: 280px; }
 .tip span { display: block; opacity: .8; font-size: 12px; }
-.list { max-height: 600px; overflow: auto; margin: 0 -14px -12px; border-top: 1px solid var(--line); }
+.list { max-height: calc(var(--map-h) + 42px); overflow: auto; margin: 0 -14px -12px; border-top: 1px solid var(--line); }
 .item { display: block; width: 100%; text-align: left; font: inherit; background: none; border: 0; border-bottom: 1px solid var(--line); padding: 9px 14px; cursor: pointer; color: var(--ink); }
 .item:hover, .item.hl { background: var(--soft); }
 .item b { display: block; font-weight: 600; font-size: 14px; }
@@ -121,7 +138,7 @@ dialog.win { position: fixed; inset: auto; margin: 0; top: 90px; left: 50%; widt
 footer { color: var(--muted); font-size: 12.5px; margin-top: 10px; }
 footer p { margin: 4px 0; }
 :focus-visible { outline: 2px solid var(--pick); outline-offset: 2px; }
-@media (max-width: 960px) { .main { grid-template-columns: 1fr; } .charts { grid-template-columns: 1fr 1fr; } svg.map { height: 420px; } .list { max-height: 420px; } }
+@media (max-width: 960px) { .main { grid-template-columns: 1fr; gap: 14px; } .split { display: none; } .charts { grid-template-columns: 1fr 1fr; } svg.map { height: 420px; } .list { max-height: 420px; } }
 @media (max-width: 620px) { svg.map { height: 320px; } .filters { position: static; } .kpis { grid-template-columns: 1fr 1fr; } .charts { grid-template-columns: 1fr; } .filters select { max-width: none; flex: 1 1 45%; } .count { margin-left: 0; } .dlg dl { grid-template-columns: 1fr; } .dlg dt { margin-top: 6px; } }
 </style>
 </head>
@@ -160,6 +177,9 @@ footer p { margin: 4px 0; }
     <div class="card mapbox">
       <h2>Where the projects work <small>· darker = more projects overlap; point at the map to count them, click to see them</small></h2>
       <svg class="map" id="map" role="img" aria-label="Map of project areas in KAZA"></svg>
+      <div class="basemap" role="group" aria-label="Background map">
+        <button type="button" data-bm="map" aria-pressed="true">Map</button><button type="button" data-bm="sat" aria-pressed="false">Satellite</button><button type="button" data-bm="none" aria-pressed="false">None</button>
+      </div>
       <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zreset" aria-label="Show all of KAZA">⤢</button></div>
       <div class="pop" id="pop" hidden></div>
       <div class="legend">
@@ -168,8 +188,10 @@ footer p { margin: 4px 0; }
         <span><i style="border:1.5px dashed var(--wda-line)"></i>Wildlife Dispersal Area</span>
         <span><i style="border:1.5px solid var(--country)"></i>Country border</span>
         <span><i style="border:1.5px solid var(--kaza)"></i>KAZA boundary</span>
+        <span class="credit" id="credit"></span>
       </div>
     </div>
+    <div class="split" id="split" role="separator" aria-orientation="vertical" aria-label="Drag to change the width of the map" tabindex="0" title="Drag to resize the map · double-click to reset"></div>
     <div class="card">
       <h2>Projects <small id="list-n"></small></h2>
       <div class="list" id="list" role="list"></div>
@@ -188,8 +210,9 @@ footer p { margin: 4px 0; }
   <section class="card dl" aria-label="Downloads">
     <b>Data</b>
     <button id="csv" type="button">Download the projects shown (CSV)</button>
-    <a href="data/kaza_projects.geojson" download>All projects with map shapes (GeoJSON)</a>
+    <button id="geojson" type="button">Download the projects shown with map shapes (GeoJSON)</button>
     <a href="data/tables.json" download>Funding, partners and WDAs (JSON)</a>
+    <p class="note" style="flex-basis:100%;margin:0">The CSV and GeoJSON downloads contain only the projects shown, with the filters and status (All, Active or Expired) currently set. To download all projects, click <b>Reset</b>: it clears the filters and sets the status to <b>All</b>.</p>
   </section>
 
   <section class="card about" aria-label="About the data">
@@ -220,8 +243,31 @@ const getJSON = u => fetch(u, {cache: 'no-cache'}).then(r => {
   return r.text();
 }).then(t => { try { return JSON.parse(t); } catch (e) { throw new Error(`${u}: expected data but received a web page or other text ("${t.slice(0, 30).replace(/\s+/g, ' ')}…")`); } });
 const showLoadError = (where, e) => { const p = document.createElement('p'); p.style.cssText = 'padding:12px;color:#a33'; p.textContent = 'The data could not be loaded. ' + e.message; where(p); console.error(e); };
-Promise.all(['data/kaza_projects.geojson', 'data/tables.json', 'data/map_layers.json', 'data/meta.json'].map(getJSON))
-.then(([GJ, TB, ML, META]) => {
+// ---------- divider between map and list (width remembered in this browser) ----------
+(() => {
+  const main = document.querySelector('.main'), sp = document.getElementById('split'), KEY = 'kaza_dash_split', DEF = 60;
+  const set = v => { v = Math.max(35, Math.min(85, v)); main.style.setProperty('--split', v + '%'); sp.setAttribute('aria-valuenow', Math.round(v)); return v; };
+  let cur = DEF; try { const v = parseFloat(localStorage.getItem(KEY)); if (v) cur = v; } catch (e) {}
+  cur = set(cur); sp.setAttribute('aria-valuemin', 35); sp.setAttribute('aria-valuemax', 85);
+  const save = () => { try { localStorage.setItem(KEY, cur); } catch (e) {} };
+  sp.addEventListener('pointerdown', e => {
+    e.preventDefault(); sp.setPointerCapture(e.pointerId); sp.classList.add('drag'); document.body.classList.add('resizing');
+    const r = main.getBoundingClientRect();
+    const move = ev => { cur = set((ev.clientX - r.left - 7) / r.width * 100); };
+    const up = () => { sp.removeEventListener('pointermove', move); sp.removeEventListener('pointerup', up); sp.removeEventListener('pointercancel', up);
+      sp.classList.remove('drag'); document.body.classList.remove('resizing'); save(); };
+    sp.addEventListener('pointermove', move); sp.addEventListener('pointerup', up); sp.addEventListener('pointercancel', up);
+  });
+  sp.addEventListener('dblclick', () => { cur = set(DEF); save(); });
+  sp.addEventListener('keydown', e => {
+    const d = {ArrowLeft: -2, ArrowRight: 2, Home: 35 - cur, End: 85 - cur}[e.key]; if (d === undefined) return;
+    e.preventDefault(); cur = set(cur + d); save();
+  });
+})();
+
+Promise.all(['data/kaza_projects.geojson', 'data/tables.json', 'data/map_layers.json', 'data/meta.json'].map(getJSON)
+  .concat(getJSON('site.json').catch(e => { console.warn(e.message); return {}; })))
+.then(([GJ, TB, ML, META, SITE]) => {
   const $ = id => document.getElementById(id);
   const split = s => (s || '').split('; ').filter(Boolean);
   const fmtUSD = v => v >= 1e9 ? (v / 1e9).toFixed(1) + ' bn' : v >= 1e6 ? (v / 1e6).toFixed(1) + ' m' : v >= 1e3 ? Math.round(v / 1e3) + ' k' : String(Math.round(v || 0));
@@ -267,7 +313,51 @@ Promise.all(['data/kaza_projects.geojson', 'data/tables.json', 'data/map_layers.
     && (!F.q || p._q.includes(F.q));
 
   // ---------- map ----------
-  const svg = d3.select('#map'), g = svg.append('g'), proj = d3.geoMercator(), path = d3.geoPath(proj);
+  const svg = d3.select('#map'), gTiles = svg.append('g').attr('class', 'tiles'), g = svg.append('g'), proj = d3.geoMercator(), path = d3.geoPath(proj);
+
+  // ---------- background maps (web map tiles drawn under the projects) ----------
+  // Simple map: CARTO Positron (light) / Dark Matter (dark mode), OpenStreetMap data. Free for non-commercial use with a free CARTO key
+  // (carto.com/basemaps/apikey), set as "carto_key" in site.json; without a key CARTO shows an "API key required" watermark.
+  // Satellite: EOxCloudless (Sentinel-2) by EOX, free for non-commercial use (CC BY-NC-SA 4.0). Both need the credit line shown on the map.
+  const S2_YEAR = SITE.satellite_year || 2025;
+  const cartoKey = SITE.carto_key ? '?key=' + encodeURIComponent(SITE.carto_key) : '';
+  const OSM = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors';
+  const dark = () => document.documentElement.dataset.theme === 'dark' || (document.documentElement.dataset.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+  const BASEMAPS = {
+    map: {maxZ: 18, url: (z, x, y) => `https://basemaps.cartocdn.com/rastertiles/${dark() ? 'dark_all' : 'light_all'}/${z}/${x}/${y}.png${cartoKey}`,
+          credit: `${OSM} · © <a href="https://carto.com/attribution/" target="_blank" rel="noopener">CARTO</a>`},
+    sat: {maxZ: 15, url: (z, x, y) => `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-${S2_YEAR}_3857/default/g/${z}/${y}/${x}.jpg`,
+          credit: `<a href="https://cloudless.eox.at" target="_blank" rel="noopener">EOxCloudless</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data ${S2_YEAR})`},
+    none: null,
+  };
+  let basemap = 'map';
+  try { const v = localStorage.getItem('kaza_dash_basemap'); if (v in BASEMAPS) basemap = v; } catch (e) {}
+  let tileErrors = 0;
+  function drawTiles() {
+    const bm = BASEMAPS[basemap], r = svg.node().getBoundingClientRect();
+    if (!bm || !r.width) { gTiles.selectAll('image').remove(); return; }
+    const t = d3.zoomTransform(svg.node()), s = proj.scale() * t.k, [tx, ty] = proj.translate();
+    const W = 2 * Math.PI * s;                                            // width of the whole world in screen pixels
+    const x0 = t.x + t.k * tx - W / 2, y0 = t.y + t.k * ty - W / 2;      // where the world's top-left corner is
+    const z = Math.max(0, Math.min(bm.maxZ, Math.round(Math.log2(W * (devicePixelRatio || 1) / 256))));
+    const n = 2 ** z, ts = W / n, tiles = [];
+    for (let i = Math.max(0, Math.floor(-x0 / ts)); i <= Math.min(n - 1, Math.floor((r.width - x0) / ts)); i++)
+      for (let j = Math.max(0, Math.floor(-y0 / ts)); j <= Math.min(n - 1, Math.floor((r.height - y0) / ts)); j++)
+        tiles.push({key: `${basemap}/${dark() ? 'd' : 'l'}/${z}/${i}/${j}`, z, i, j});
+    gTiles.selectAll('image').data(tiles, d => d.key)
+      .join(enter => enter.append('image').attr('preserveAspectRatio', 'none').attr('href', d => bm.url(d.z, d.i, d.j))
+        .on('error', function () { d3.select(this).attr('visibility', 'hidden'); if (++tileErrors === 8) console.warn('Background map tiles could not be loaded.'); }))
+      .attr('x', d => x0 + d.i * ts).attr('y', d => y0 + d.j * ts).attr('width', ts + 0.5).attr('height', ts + 0.5);
+  }
+  function setBasemap(b) {
+    basemap = b; try { localStorage.setItem('kaza_dash_basemap', b); } catch (e) {}
+    document.querySelectorAll('.basemap button').forEach(x => x.setAttribute('aria-pressed', x.dataset.bm === b));
+    svg.classed('bm-sat', b === 'sat');
+    $('credit').innerHTML = BASEMAPS[b] ? BASEMAPS[b].credit : '';
+    gTiles.selectAll('image').remove(); drawTiles();
+  }
+  document.querySelectorAll('.basemap button').forEach(x => x.onclick = () => setBasemap(x.dataset.bm));
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => setBasemap(basemap));
   const kaza = {type: 'Feature', geometry: rewind(ML.kaza)};
   const gFoot = g.append('g');
   g.append('g').selectAll('path').data(ML.countries.map(c => ({type: 'Feature', geometry: rewind(c.geometry), properties: c}))).join('path').attr('class', 'country');
@@ -279,8 +369,9 @@ Promise.all(['data/kaza_projects.geojson', 'data/tables.json', 'data/map_layers.
     svg.attr('viewBox', `0 0 ${r.width} ${r.height}`);
     proj.fitExtent([[14, 14], [r.width - 14, r.height - 14]], kaza);
     g.selectAll('path').attr('d', path);
+    drawTiles();
   }
-  const zoom = d3.zoom().scaleExtent([1, 40]).on('zoom', e => { g.attr('transform', e.transform); $('pop').hidden = true; });
+  const zoom = d3.zoom().scaleExtent([1, 40]).on('zoom', e => { g.attr('transform', e.transform); $('pop').hidden = true; drawTiles(); });
   svg.call(zoom).on('dblclick.zoom', null);
   $('zin').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1.8);
   $('zout').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.8);
@@ -464,8 +555,15 @@ Promise.all(['data/kaza_projects.geojson', 'data/tables.json', 'data/map_layers.
     const txt = [cols.join(',')].concat(shown.map(p => cols.map(c => q(p[c])).join(','))).join('\n');
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + txt], {type: 'text/csv'})); a.download = 'kaza_projects.csv'; a.click();
   };
+  // GeoJSON of the projects shown (same filters as the CSV), with the shapes as published
+  $('geojson').onclick = () => {
+    const ids = new Set(shown.map(p => p.project_id));
+    const fc = {type: 'FeatureCollection', name: 'kaza_projects', features: GJ.features.filter(f => ids.has(f.properties.project_id))};
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(fc)], {type: 'application/geo+json'})); a.download = 'kaza_projects.geojson'; a.click();
+  };
   $('rules').replaceChildren(...Object.entries(META.rules).map(([k, v]) => { const p = document.createElement('p'); p.textContent = `${k[0].toUpperCase() + k.slice(1)}: ${v}.`; return p; }));
-  fit(); update();
+  setBasemap(basemap); fit(); update();
+  window.__dash = {proj, svg: svg.node()};   // for testing
   new ResizeObserver(() => fit()).observe(svg.node());
 }).catch(e => showLoadError(p => document.querySelector('.wrap').prepend(p), e));
 </script>
