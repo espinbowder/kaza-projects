@@ -115,6 +115,19 @@ svg.map { display: block; width: 100%; height: var(--map-h); touch-action: none;
 .cols { display: flex; align-items: flex-end; gap: 2px; height: 150px; padding-top: 6px; border-bottom: 1px solid var(--line); }
 .cols div { flex: 1; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 1px; position: relative; cursor: default; }
 .cols div:hover { background: var(--pick); }
+.endrow { display: flex; gap: 16px; align-items: flex-start; }
+.endrow > div:first-child { flex: 1; min-width: 0; }
+.endrow .noend { width: 36px; }
+.endrow .noend .colx { font-size: 11px; }
+.cols div.none { background: var(--muted); opacity: .55; }
+.cols.click div { cursor: pointer; }
+.cols div.dim { opacity: .3; }
+.cols div.on { background: var(--pick); opacity: 1; }
+.yclear { font: inherit; font-size: 12px; font-weight: 400; margin-left: 8px; padding: 1px 8px; border: 1px solid var(--pick); border-radius: 10px; background: transparent; color: var(--ink); cursor: pointer; }
+.cols div.none:hover { background: var(--pick); opacity: 1; }
+.endrow .noend .colx { justify-content: center; text-align: center; line-height: 1.2; }
+h3.sub { font-size: 13px; font-weight: 600; margin: 14px 0 0; }
+h3.sub small { font-weight: 400; color: var(--muted); }
 .colx { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-top: 4px; }
 .note { color: var(--muted); font-size: 12.5px; margin: 8px 0 0; }
 /* Project details: a floating window. Drag the grey bar to move it, drag the bottom-right corner to resize it. */
@@ -204,7 +217,11 @@ footer p { margin: 4px 0; }
     <div class="card"><h2>Countries <small>· projects per country</small></h2><div class="bars" id="c-country"></div><p class="note">A project that works in several countries counts once in each, so these numbers can't be added up.</p></div>
     <div class="card"><h2>Funders <small>· projects funded, top 12</small></h2><div class="bars" id="c-funder"></div><p class="note">Number of projects each funder supports, not amounts: most projects have several funders and many amounts are not disclosed. German Government includes funding through KfW, BMZ, GIZ, IKI and BMBF.</p></div>
     <div class="card"><h2>Implementing partners <small>· projects, top 12</small></h2><div class="bars" id="c-org"></div><p class="note">Primary and local partners together. Most projects have several partners, so these numbers can't be added up.</p></div>
-    <div class="card"><h2>Project starts <small>· projects starting per year</small></h2><div class="cols" id="c-year"></div><div class="colx" id="c-year-x"></div><p class="note">By the start date reported. Projects without a start date are left out.</p></div>
+    <div class="card"><h2>Project starts and finishes <small>· projects per year</small></h2>
+      <h3 class="sub" style="margin-top:4px">Starting <small>· click a year to filter</small><button type="button" class="yclear" id="sy-clear" hidden></button></h3><div class="cols" id="c-year"></div><div class="colx" id="c-year-x"></div>
+      <h3 class="sub">Finishing <small>· click a year to filter</small><button type="button" class="yclear" id="ey-clear" hidden></button></h3>
+      <div class="endrow"><div><div class="cols" id="c-end"></div><div class="colx" id="c-end-x"></div></div><div class="noend"><div class="cols" id="c-end-none"></div><div class="colx"><span>No end date</span></div></div></div>
+      <p class="note">By the start and current end date reported. Projects without a start date are left out of “Starting”; projects without an end date, or reported as ongoing, are shown under “No end date”.</p></div>
   </section>
 
   <section class="card dl" aria-label="Downloads">
@@ -290,7 +307,7 @@ Promise.all(['data/kaza_projects.geojson', 'data/tables.json', 'data/map_layers.
   $('updated').textContent = `Last updated ${META.updated}.`;
 
   // ---------- filters ----------
-  const F = {st: 'Active', country: '', wda: '', theme: '', funder: '', org: '', q: ''};
+  const F = {st: 'Active', country: '', wda: '', theme: '', funder: '', org: '', q: '', sy: '', ey: ''};   // sy / ey: start / end year range 'from:to', or ey 'none'
   const counts = (key) => { const m = new Map(); P.forEach(p => p[key].forEach(v => m.set(v, (m.get(v) || 0) + 1))); return [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])); };
   function fillSelect(id, label, key, sortAlpha) {
     const s = $(id); s.replaceChildren(new Option(label, ''));
@@ -306,9 +323,13 @@ Promise.all(['data/kaza_projects.geojson', 'data/tables.json', 'data/map_layers.
   Object.entries(SEL).forEach(([k, id]) => $(id).onchange = e => { F[k] = e.target.value; update(); });
   $('f-q').oninput = e => { F.q = e.target.value.trim().toLowerCase(); update(); };
   document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { F.st = b.dataset.st; update(); });
-  $('reset').onclick = () => { Object.assign(F, {st: '', country: '', wda: '', theme: '', funder: '', org: '', q: ''}); $('f-q').value = ''; update(); };
+  $('reset').onclick = () => { Object.assign(F, {st: '', country: '', wda: '', theme: '', funder: '', org: '', q: '', sy: '', ey: ''}); $('f-q').value = ''; update(); };
   function setFilter(k, v) { F[k] = F[k] === v ? '' : v; update(); }
-  const keep = p => (!F.st || p.status === F.st) && (!F.country || p._countries.includes(F.country)) && (!F.wda || p._wdas.includes(F.wda))
+  const inYears = (date, key) => { if (!date) return false; const y = +date.slice(0, 4), [lo, hi] = key.split(':').map(Number); return y >= lo && y <= hi; };
+  const startOk = p => !F.sy || inYears(p.start_date, F.sy);
+  const endOk = p => !F.ey || (F.ey === 'none' ? !p.end_date : inYears(p.end_date, F.ey));
+  const keep = p => keepBase(p) && startOk(p) && endOk(p);
+  const keepBase = p => (!F.st || p.status === F.st) && (!F.country || p._countries.includes(F.country)) && (!F.wda || p._wdas.includes(F.wda))
     && (!F.theme || p._themes.includes(F.theme)) && (!F.funder || p._funders.includes(F.funder)) && (!F.org || p._partners.includes(F.org))
     && (!F.q || p._q.includes(F.q));
 
@@ -439,16 +460,46 @@ Promise.all(['data/kaza_projects.geojson', 'data/tables.json', 'data/map_layers.
       el.append(lab, bar);
     });
   }
-  function years() {
-    const ys = shown.map(p => p.start_date ? +p.start_date.slice(0, 4) : null).filter(Boolean);
-    const el = $('c-year'), ex = $('c-year-x'); el.replaceChildren(); ex.replaceChildren();
-    if (!ys.length) return;
-    const y0 = Math.max(d3.min(ys), 2005), y1 = Math.max(d3.max(ys), new Date().getFullYear());
-    const m = d3.rollup(ys.map(y => Math.max(y, y0)), v => v.length, d => d); const max = d3.max(m.values());
-    for (let y = y0; y <= y1; y++) { const n = m.get(y) || 0; const d = document.createElement('div'); d.style.height = (n / max * 100) + '%';
-      d.onmousemove = e => showTip(e, y === y0 && d3.min(ys) < y0 ? `${y} or earlier` : String(y), `${n} project${n === 1 ? '' : 's'} started`); d.onmouseleave = hideTip; el.append(d); }
-    [y0, Math.round((y0 + y1) / 2), y1].forEach(y => { const s = document.createElement('span'); s.textContent = y; ex.append(s); });
+  // Starting / Finishing charts: each is drawn from the projects that pass every filter except its own year, so the other
+  // years stay visible (dimmed) after one is clicked. Clicking a year filters the whole dashboard; clicking it again clears it.
+  const plural = n => `${n} project${n === 1 ? '' : 's'}`;
+  function yearCols(el, ex, list, key, cap, verb, extra) {
+    el.replaceChildren(); ex.replaceChildren(); el.classList.add('click');
+    const ys = list.map(p => p[key.field] ? +p[key.field].slice(0, 4) : null).filter(Boolean);
+    if (!ys.length) return {max: 0};
+    const now = new Date().getFullYear(), lowest = d3.min(ys), highest = d3.max(ys);
+    const y0 = Math.min(Math.max(lowest, 2005), cap), y1 = Math.min(Math.max(highest, key.field === 'start_date' ? now : y0), cap);
+    const range = y => `${y === y0 && lowest < y0 ? 0 : y}:${y === y1 && highest > y1 ? 9999 : y}`;
+    const label = y => y === y0 && lowest < y0 ? `${y} or earlier` : y === y1 && highest > y1 ? `${y} or later` : String(y);
+    const m = d3.rollup(ys.map(y => Math.min(Math.max(y, y0), y1)), v => v.length, d => d);
+    const max = Math.max(d3.max(m.values()), extra || 0);
+    for (let y = y0; y <= y1; y++) {
+      const n = m.get(y) || 0, r = range(y), d = document.createElement('div'); d.style.height = (n / max * 100) + '%';
+      if (F[key.f]) d.className = F[key.f] === r ? 'on' : 'dim';
+      d.onmousemove = e => showTip(e, label(y), `${plural(n)} ${verb(y, now)} · ${F[key.f] === r ? 'click again to clear' : 'click to filter'}`);
+      d.onmouseleave = hideTip; d.onclick = () => { hideTip(); setYear(key.f, r, label(y)); };
+      el.append(d);
+    }
+    [...new Set([y0, Math.round((y0 + y1) / 2), y1])].forEach(y => { const s = document.createElement('span'); s.textContent = y === y1 && highest > y1 ? `${y}+` : y; ex.append(s); });
+    return {max};
   }
+  const yearLabel = {sy: '', ey: ''};
+  function setYear(f, r, label) { if (F[f] === r) { F[f] = ''; } else { F[f] = r; yearLabel[f] = label; } update(); }
+  function years() {
+    const now = new Date().getFullYear();
+    yearCols($('c-year'), $('c-year-x'), P.filter(p => keepBase(p) && endOk(p)), {field: 'start_date', f: 'sy'}, now + 10, () => 'started');
+    const ends = P.filter(p => keepBase(p) && startOk(p)), none = ends.filter(p => !p.end_date).length;
+    const {max} = yearCols($('c-end'), $('c-end-x'), ends, {field: 'end_date', f: 'ey'}, now + 10,
+      (y, n) => y < n ? 'ended' : y === n ? 'ending this year (or already ended)' : 'ending', none);
+    const nz = $('c-end-none'); nz.replaceChildren(); nz.classList.add('click');
+    const d = document.createElement('div'); d.className = 'none' + (F.ey === 'none' ? ' on' : F.ey ? ' dim' : ''); d.style.height = (none / (max || none || 1) * 100) + '%';
+    d.onmousemove = e => showTip(e, 'No end date', `${plural(none)} without an end date, or reported as ongoing · ${F.ey === 'none' ? 'click again to clear' : 'click to filter'}`);
+    d.onmouseleave = hideTip; d.onclick = () => { hideTip(); setYear('ey', 'none', 'No end date'); }; nz.append(d);
+    [['sy', 'Started'], ['ey', 'Finishing']].forEach(([f, w]) => { const b = $(f + '-clear'); b.hidden = !F[f];
+      b.textContent = F[f] ? `${f === 'ey' && F.ey === 'none' ? 'No end date' : yearLabel[f]} ×` : ''; b.title = 'Clear this year filter'; });
+  }
+  $('sy-clear').onclick = () => { F.sy = ''; update(); };
+  $('ey-clear').onclick = () => { F.ey = ''; update(); };
 
   // ---------- list + detail ----------
   function open(p) {
