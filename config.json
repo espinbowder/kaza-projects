@@ -4,6 +4,6 @@
   "wda_min_share": 0.02,
   "grid_km": 1.0,
   "display_tolerance": 0.004,
-  "country_min_share": 0.05
+  "country_min_share": 0.05,
   "fx_to_usd": { "USD": 1.0 }
 }
