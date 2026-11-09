@@ -37,8 +37,23 @@ def num(v):
 
 # ---------------- reference data ----------------
 ref = json.load(open(os.path.join(ROOT, 'data/reference/areas.geojson')))
-AREAS = {f['properties']['area_id']: f['properties'] for f in ref['features']}
-AGEOM = {f['properties']['area_id']: f['geometry'] for f in ref['features']}
+AREA_PROBLEMS = []   # problems in the reference file after a manual edit; listed in the run summary
+def _ref_feature(f, i):
+    pr = f.get('properties') or {}; aid = str(pr.get('area_id') or '').strip(); g = f.get('geometry')
+    if not aid: AREA_PROBLEMS.append(f'feature {i + 1} ({pr.get("name") or "no name"}) has no area_id: left out'); return None
+    if not g or g.get('type') not in ('Polygon', 'MultiPolygon'): AREA_PROBLEMS.append(f'{aid} has no polygon geometry: left out'); return None
+    if g['type'] == 'Polygon': g = {'type': 'MultiPolygon', 'coordinates': [g['coordinates']]}   # GIS tools may save single parts as Polygon
+    pr['area_id'] = aid; pr['country'] = (pr.get('country') or '').strip().lower(); pr['in_picker'] = 1 if str(pr.get('in_picker')) in ('1', 'True', 'true') else 0
+    for k in ('name', 'type', 'wda', 'level'): pr[k] = pr.get(k) or ''
+    if not pr['name']: AREA_PROBLEMS.append(f'{aid} has no name')
+    return aid, pr, g
+AREAS, AGEOM = {}, {}
+for i, f in enumerate(ref['features']):
+    r = _ref_feature(f, i)
+    if not r: continue
+    aid, pr, g = r
+    if aid in AREAS: AREA_PROBLEMS.append(f'area_id {aid} is used twice ({AREAS[aid]["name"]} / {pr["name"]}): the second one is left out'); continue
+    AREAS[aid] = pr; AGEOM[aid] = g
 DISTRICTS = []                                                                  # admin level 2: districts / constituencies (ids D_...)
 if os.path.exists(os.path.join(ROOT, 'data/reference/districts.geojson')):
     for f in json.load(open(os.path.join(ROOT, 'data/reference/districts.geojson')))['features']:
@@ -257,6 +272,8 @@ if dissolve.HAVE_SHAPELY:
               + (f'; clean-up failed for {DSTATS["failed"]} (their outlines were kept as they are).' if DSTATS.get('failed') else '.')]
 else:
     lines += ['', 'Shapely is not installed, so map outlines were not merged or cleaned.']
+if AREA_PROBLEMS:
+    lines += ['', '### Problems in data/reference/areas.geojson', ''] + [f'- {x}' for x in AREA_PROBLEMS]
 summary = '\n'.join(lines)
 print(summary)
 if os.environ.get('GITHUB_STEP_SUMMARY'):
