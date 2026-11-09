@@ -392,7 +392,7 @@ Promise.all(['data/kaza_projects.geojson', 'data/tables.json', 'data/map_layers.
     g.selectAll('path').attr('d', path);
     drawTiles();
   }
-  const zoom = d3.zoom().scaleExtent([1, 40]).on('zoom', e => { g.attr('transform', e.transform); $('pop').hidden = true; drawTiles(); });
+  const zoom = d3.zoom().scaleExtent([1, 40]).clickDistance(8).on('zoom', e => { g.attr('transform', e.transform); $('pop').hidden = true; drawTiles(); });
   svg.call(zoom).on('dblclick.zoom', null);
   $('zin').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1.8);
   $('zout').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.8);

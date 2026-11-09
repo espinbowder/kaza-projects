@@ -433,7 +433,7 @@ Promise.all([getJSON('data/picker_areas.json'), getJSON('site.json').catch(e => 
   const gedit = g.append('g');    // corner points of the shape being edited
 
   let k = 1;
-  const zoom = d3.zoom().scaleExtent([1, 80]).on('zoom', e => { g.attr('transform', e.transform); k = e.transform.k; gdraft.selectAll('circle').attr('r', 4 / k); gedit.selectAll('circle.handle').attr('r', 5 / k); gedit.selectAll('circle.mid').attr('r', 3.5 / k); });
+  const zoom = d3.zoom().scaleExtent([1, 80]).clickDistance(8).on('zoom', e => { g.attr('transform', e.transform); k = e.transform.k; gdraft.selectAll('circle').attr('r', 4 / k); gedit.selectAll('circle.handle').attr('r', 5 / k); gedit.selectAll('circle.mid').attr('r', 3.5 / k); });
   svg.call(zoom).on('dblclick.zoom', null);
   $('zin').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1.8);
   $('zout').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.8);
