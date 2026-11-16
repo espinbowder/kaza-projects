@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>/* light / dark choice remembered in this browser (set before the page draws, so it doesn't flash) */
+try { var t = localStorage.getItem('kaza_theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KAZA Projects</title>
+<meta name="description" content="Who is doing what, and where, in the Kavango Zambezi Transfrontier Conservation Area.">
+<style>
+:root {
+  /* WWF brand. Principal colours: black and white. Supporting colours (WWF palette), used sparingly:
+     Green #007932 = data, Orange #F07D00 = selection, Blue #00728F = WDA outlines; dark mode uses
+     Medium-green #8CC63F, Yellow #F5D200 and Aqua #009191.
+     Font: WWF alternate font. To change it, edit --font below. */
+  --font: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  --bg: #f5f5f3; --panel: #ffffff; --ink: #000000; --muted: #555555; --line: #dddddd; --soft: #f0f0ee;
+  --brand: #000000; --on-brand: #ffffff;
+  --accent: #007932; --accent-soft: #e2efe6; --pick: #f07d00; --pick-soft: #fde8d2;
+  --foot: #007932; --wda-line: #00728f; --kaza: #000000; --land: #fbfbfa; --country: #6b6b6b;
+  --expired: #8a8a8a; --r: 8px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #000000; --panel: #141414; --ink: #ffffff; --muted: #b0b0b0; --line: #333333; --soft: #1f1f1f;
+    --brand: #ffffff; --on-brand: #000000;
+    --accent: #8cc63f; --accent-soft: #24331a; --pick: #f5d200; --pick-soft: #3a3300;
+    --foot: #8cc63f; --wda-line: #009191; --kaza: #ffffff; --land: #0a0a0a; --country: #8a8a8a; --expired: #777777;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #000000; --panel: #141414; --ink: #ffffff; --muted: #b0b0b0; --line: #333333; --soft: #1f1f1f;
+  --brand: #ffffff; --on-brand: #000000;
+  --accent: #8cc63f; --accent-soft: #24331a; --pick: #f5d200; --pick-soft: #3a3300;
+  --foot: #8cc63f; --wda-line: #009191; --kaza: #ffffff; --land: #0a0a0a; --country: #8a8a8a; --expired: #777777;
+  color-scheme: dark;
+}
+.theme-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; font-size: 13px; background: var(--panel); }
+.theme-switch button { font: inherit; border: 0; background: transparent; color: var(--ink); padding: 5px 10px; cursor: pointer; }
+.theme-switch button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+.hright { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 var(--font); }
+.wrap { margin: 0 auto; padding: 20px 20px 40px; }     /* full width of the window */
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin-bottom: 16px; }
+h1 { font-size: 26px; line-height: 1.2; margin: 0 0 4px; letter-spacing: -.01em; }
+header p { margin: 0; color: var(--muted); max-width: 70ch; }
+.add { display: inline-block; padding: 9px 14px; border-radius: 6px; background: var(--brand); color: var(--on-brand); text-decoration: none; font-weight: 600; white-space: nowrap; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; }
+.kpi b { display: block; font-size: 26px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.kpi span { color: var(--muted); font-size: 13px; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 10px; margin-bottom: 14px; position: sticky; top: 0; z-index: 5; }
+.filters select, .filters input { font: inherit; font-size: 14px; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-width: 0; }
+.filters select { max-width: 190px; }
+.filters input[type=search] { flex: 1 1 180px; }
+.filters select.set { border-color: var(--pick); background: var(--pick-soft); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { font: inherit; font-size: 14px; border: 0; background: transparent; color: var(--ink); padding: 6px 10px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--brand); color: var(--on-brand); }
+.reset { font: inherit; font-size: 14px; border: 0; background: none; color: var(--ink); text-decoration: underline; cursor: pointer; padding: 6px 4px; }
+.count { color: var(--muted); font-size: 13px; margin-left: auto; }
+.main { --map-h: clamp(520px, 66vh, 900px); display: grid; grid-template-columns: minmax(0, var(--split, 60%)) 14px minmax(0, 1fr); margin-bottom: 14px; }
+/* the divider between the map and the project list: drag it (or use the arrow keys) to make the map wider; double-click to reset */
+.split { cursor: col-resize; touch-action: none; display: flex; justify-content: center; align-items: center; }
+.split::before { content: ''; width: 4px; height: 48px; border-radius: 2px; background: var(--line); transition: background .12s; }
+.split:hover::before, .split:focus-visible::before, .split.drag::before { background: var(--muted); height: 72px; }
+.split:focus-visible { outline: none; }
+body.resizing { cursor: col-resize; user-select: none; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; min-width: 0; }
+.card h2 { font-size: 15px; margin: 0 0 8px; }
+.card h2 small { font-weight: 400; color: var(--muted); }
+.mapbox { position: relative; padding: 0; overflow: hidden; }
+.mapbox h2 { padding: 12px 14px 0; }
+svg.map { display: block; width: 100%; height: var(--map-h); touch-action: none; cursor: grab; background: var(--land); }
+.map .country { fill: none; stroke: var(--country); stroke-width: 1.2; vector-effect: non-scaling-stroke; pointer-events: none; }
+.map .wda { fill: none; stroke: var(--wda-line); stroke-width: 1.2; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+.map .kaza { fill: none; stroke: var(--kaza); stroke-width: 1.4; vector-effect: non-scaling-stroke; pointer-events: none; opacity: .75; }
+.map .foot { fill: var(--foot); fill-opacity: .07; stroke: var(--foot); stroke-opacity: .35; stroke-width: .7; vector-effect: non-scaling-stroke; }
+.map .tiles image { pointer-events: none; }
+.map.bm-sat .kaza { stroke: #ffffff; opacity: .9; }
+.map.bm-sat .country { stroke: #ffffff; stroke-opacity: .75; }
+.map.bm-sat .wda { stroke: #8cc63f; }
+.map.bm-sat .foot { stroke: #f5d200; stroke-opacity: .6; fill: #f5d200; }
+.basemap { position: absolute; left: 10px; top: 44px; z-index: 3; display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--panel); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+.basemap button { font: inherit; font-size: 13px; border: 0; background: transparent; color: var(--ink); padding: 5px 9px; cursor: pointer; }
+.basemap button[aria-pressed="true"] { background: var(--brand); color: var(--on-brand); }
+.credit { margin-left: auto; font-size: 11.5px; }
+.credit a { color: inherit; }
+.credit:empty { display: none; }
+.map .foot.hl { fill: var(--pick); fill-opacity: .45; stroke: var(--pick); stroke-opacity: 1; stroke-width: 2; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 8px 14px 10px; font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); }
+.legend i { display: inline-block; width: 16px; height: 10px; margin-right: 6px; vertical-align: -1px; border-radius: 2px; }
+.zoom { position: absolute; right: 10px; top: 44px; display: grid; gap: 4px; }
+.zoom button { width: 32px; height: 32px; font-size: 18px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 6px; cursor: pointer; }
+.pop { position: absolute; z-index: 4; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.18); padding: 8px; width: 290px; min-width: 200px; min-height: 70px; overflow: auto; resize: both; font-size: 13.5px; }
+.pop h3 { font-size: 12.5px; margin: 0 0 4px; color: var(--muted); font-weight: 500; }
+.pop button { display: block; width: 100%; text-align: left; font: inherit; background: none; border: 0; border-radius: 5px; padding: 5px 6px; color: var(--ink); cursor: pointer; }
+.pop button:hover { background: var(--soft); }
+.tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: var(--panel); padding: 6px 9px; border-radius: 6px; font-size: 13px; max-width: 280px; }
+.tip span { display: block; opacity: .8; font-size: 12px; }
+.list { max-height: calc(var(--map-h) + 42px); overflow: auto; margin: 0 -14px -12px; border-top: 1px solid var(--line); }
+.item { display: block; width: 100%; text-align: left; font: inherit; background: none; border: 0; border-bottom: 1px solid var(--line); padding: 9px 14px; cursor: pointer; color: var(--ink); }
+.item:hover, .item.hl { background: var(--soft); }
+.item b { display: block; font-weight: 600; font-size: 14px; }
+.item span { color: var(--muted); font-size: 12.5px; }
+.badge { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 1px 6px; border-radius: 10px; margin-right: 6px; }
+.badge.Active { background: var(--accent-soft); color: var(--accent); }
+.badge.Expired { background: var(--soft); color: var(--muted); }
+.charts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
+.bars { display: grid; grid-template-columns: minmax(0, 46%) minmax(0, 1fr); gap: 3px 10px; align-items: center; font-size: 13px; }
+.bars .lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); cursor: pointer; text-align: left; font: inherit; font-size: 13px; background: none; border: 0; padding: 2px 0; }
+.bars .lab:hover { text-decoration: underline; }
+.bars .bar { display: flex; align-items: center; gap: 6px; cursor: pointer; min-height: 20px; }
+.bars .bar i { display: block; height: 14px; background: var(--accent); border-radius: 0 4px 4px 0; min-width: 2px; }
+.bars .bar.on i { background: var(--pick); }
+.bars .bar.dim i { opacity: .35; }
+.bars .bar em { font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.cols { display: flex; align-items: flex-end; gap: 2px; height: 150px; padding-top: 6px; border-bottom: 1px solid var(--line); }
+.cols div { flex: 1; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 1px; position: relative; cursor: default; }
+.cols div:hover { background: var(--pick); }
+.endrow { display: flex; gap: 16px; align-items: flex-start; }
+.endrow > div:first-child { flex: 1; min-width: 0; }
+.endrow .noend { width: 36px; }
+.endrow .noend .colx { font-size: 11px; }
+.cols div.none { background: var(--muted); opacity: .55; }
+.cols.click div { cursor: pointer; }
+.cols div.dim { opacity: .3; }
+.cols div.on { background: var(--pick); opacity: 1; }
+.yclear { font: inherit; font-size: 12px; font-weight: 400; margin-left: 8px; padding: 1px 8px; border: 1px solid var(--pick); border-radius: 10px; background: transparent; color: var(--ink); cursor: pointer; }
+.cols div.none:hover { background: var(--pick); opacity: 1; }
+.endrow .noend .colx { justify-content: center; text-align: center; line-height: 1.2; }
+h3.sub { font-size: 13px; font-weight: 600; margin: 14px 0 0; }
+h3.sub small { font-weight: 400; color: var(--muted); }
+.colx { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-top: 4px; }
+.note { color: var(--muted); font-size: 12.5px; margin: 8px 0 0; }
+/* Project details: a floating window. Drag the grey bar to move it, drag the bottom-right corner to resize it. */
+dialog.win { position: fixed; inset: auto; margin: 0; top: 90px; left: 50%; width: 600px; height: 520px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px);
+  min-width: 280px; min-height: 180px; resize: both; overflow: auto; padding: 0; z-index: 30;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); box-shadow: 0 12px 40px rgba(0,0,0,.28); }
+.win-bar { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 10px; padding: 7px 8px 7px 14px; background: var(--soft);
+  border-bottom: 1px solid var(--line); cursor: move; user-select: none; touch-action: none; }
+.win-bar span { flex: 1; font-size: 12.5px; color: var(--muted); }
+.pop h3 { cursor: move; user-select: none; touch-action: none; }
+.dlg { padding: 18px 20px 20px; }
+.dlg h2 { margin: 0 0 6px; font-size: 19px; }
+.dlg dl { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 6px 12px; margin: 12px 0 0; font-size: 14px; }
+.dlg dt { color: var(--muted); }
+.dlg dd { margin: 0; }
+.close { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.dl { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13.5px; }
+.dl a, .dl button { color: var(--ink); font: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+.about ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13.5px; }
+.about li { margin: 3px 0; }
+footer { color: var(--muted); font-size: 12.5px; margin-top: 10px; }
+footer p { margin: 4px 0; }
+:focus-visible { outline: 2px solid var(--pick); outline-offset: 2px; }
+@media (max-width: 960px) { .main { grid-template-columns: 1fr; gap: 14px; } .split { display: none; } .charts { grid-template-columns: 1fr 1fr; } svg.map { height: 420px; } .list { max-height: 420px; } }
+@media (max-width: 620px) { svg.map { height: 320px; } .filters { position: static; } .kpis { grid-template-columns: 1fr 1fr; } .charts { grid-template-columns: 1fr; } .filters select { max-width: none; flex: 1 1 45%; } .count { margin-left: 0; } .dlg dl { grid-template-columns: 1fr; } .dlg dt { margin-top: 6px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Who is doing what in KAZA</h1>
+      <p>Conservation and development projects in the Kavango Zambezi Transfrontier Conservation Area, as reported by the organisations involved. <span id="updated"></span></p>
+    </div>
+    <div class="hright"><div class="theme-switch" role="group" aria-label="Colour theme"><button type="button" data-theme="auto" title="Follow the device setting">Auto</button><button type="button" data-theme="light">Light</button><button type="button" data-theme="dark">Dark</button></div><a class="add" href="picker.html">Add your project</a></div>
+  </header>
+
+  <section class="kpis" aria-label="Key figures">
+    <div class="kpi"><b id="k-proj">–</b><span>projects shown</span></div>
+    <div class="kpi"><b id="k-end">–</b><span>end within the next 12 months</span></div>
+    <div class="kpi"><b id="k-org">–</b><span>organisations involved</span></div>
+    <div class="kpi"><b id="k-bud">–</b><span id="k-bud-l">total budgets reported (USD)</span></div>
+  </section>
+
+  <section class="filters" aria-label="Filters">
+    <div class="seg" role="group" aria-label="Project status">
+      <button data-st="" aria-pressed="false">All</button><button data-st="Active" aria-pressed="true">Active</button><button data-st="Expired" aria-pressed="false">Expired</button>
+    </div>
+    <select id="f-country" aria-label="Country"></select>
+    <select id="f-wda" aria-label="Wildlife Dispersal Area"></select>
+    <select id="f-theme" aria-label="Theme"></select>
+    <select id="f-funder" aria-label="Funder"></select>
+    <select id="f-org" aria-label="Implementing partner"></select>
+    <input type="search" id="f-q" placeholder="Search titles and organisations" aria-label="Search">
+    <button class="reset" id="reset" type="button">Reset</button>
+    <span class="count" id="count"></span>
+  </section>
+
+  <section class="main">
+    <div class="card mapbox">
+      <h2>Where the projects work <small>· darker = more projects overlap; point at the map to count them, click to see them</small></h2>
+      <svg class="map" id="map" role="img" aria-label="Map of project areas in KAZA"></svg>
+      <div class="basemap" role="group" aria-label="Background map">
+        <button type="button" data-bm="map" aria-pressed="true">Map</button><button type="button" data-bm="sat" aria-pressed="false">Satellite</button><button type="button" data-bm="none" aria-pressed="false">None</button>
+      </div>
+      <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zreset" aria-label="Show all of KAZA">⤢</button></div>
+      <div class="pop" id="pop" hidden></div>
+      <div class="legend">
+        <span><i style="background:var(--foot);opacity:.35"></i>Project area</span>
+        <span><i style="background:var(--pick)"></i>Selected project</span>
+        <span><i style="border:1.5px dashed var(--wda-line)"></i>Wildlife Dispersal Area</span>
+        <span><i style="border:1.5px solid var(--country)"></i>Country border</span>
+        <span><i style="border:1.5px solid var(--kaza)"></i>KAZA boundary</span>
+        <span class="credit" id="credit"></span>
+      </div>
+    </div>
+    <div class="split" id="split" role="separator" aria-orientation="vertical" aria-label="Drag to change the width of the map" tabindex="0" title="Drag to resize the map · double-click to reset"></div>
+    <div class="card">
+      <h2>Projects <small id="list-n"></small></h2>
+      <div class="list" id="list" role="list"></div>
+    </div>
+  </section>
+
+  <section class="charts">
+    <div class="card"><h2>Themes <small>· projects per theme</small></h2><div class="bars" id="c-theme"></div><p class="note">A project can address several themes, so these numbers add up to more than the number of projects.</p></div>
+    <div class="card"><h2>Wildlife Dispersal Areas <small>· projects per WDA</small></h2><div class="bars" id="c-wda"></div><p class="note">A project can count in several WDAs, so these numbers can't be added up. Whole-KAZA projects count in all six; other projects count where at least 2% of their area lies in the WDA.</p></div>
+    <div class="card"><h2>Countries <small>· projects per country</small></h2><div class="bars" id="c-country"></div><p class="note">A project that works in several countries counts once in each, so these numbers can't be added up.</p></div>
+    <div class="card"><h2>Funders <small>· projects funded, top 12</small></h2><div class="bars" id="c-funder"></div><p class="note">Number of projects each funder supports, not amounts: most projects have several funders and many amounts are not disclosed. German Government includes funding through KfW, BMZ, GIZ, IKI and BMBF.</p></div>
+    <div class="card"><h2>Implementing partners <small>· projects, top 12</small></h2><div class="bars" id="c-org"></div><p class="note">Primary and local partners together. Most projects have several partners, so these numbers can't be added up.</p></div>
+    <div class="card"><h2>Project starts and finishes <small>· projects per year</small></h2>
+      <h3 class="sub" style="margin-top:4px">Starting <small>· click a year to filter</small><button type="button" class="yclear" id="sy-clear" hidden></button></h3><div class="cols" id="c-year"></div><div class="colx" id="c-year-x"></div>
+      <h3 class="sub">Finishing <small>· click a year to filter</small><button type="button" class="yclear" id="ey-clear" hidden></button></h3>
+      <div class="endrow"><div><div class="cols" id="c-end"></div><div class="colx" id="c-end-x"></div></div><div class="noend"><div class="cols" id="c-end-none"></div><div class="colx"><span>No end date</span></div></div></div>
+      <p class="note">By the start and current end date reported. Projects without a start date are left out of “Starting”; projects without an end date, or reported as ongoing, are shown under “No end date”.</p></div>
+  </section>
+
+  <section class="card dl" aria-label="Downloads">
+    <b>Data</b>
+    <button id="csv" type="button">Download the projects shown (CSV)</button>
+    <button id="geojson" type="button">Download the projects shown with map shapes (GeoJSON)</button>
+    <a href="data/tables.json" download>Funding, partners and WDAs (JSON)</a>
+    <p class="note" style="flex-basis:100%;margin:0">The CSV and GeoJSON downloads contain only the projects shown, with the filters and status (All, Active or Expired) currently set. To download all projects, click <b>Reset</b>: it clears the filters and sets the status to <b>All</b>.</p>
+  </section>
+
+  <section class="card about" aria-label="About the data">
+    <h2>How to read these numbers</h2>
+    <ul>
+      <li>The projects are those reported by the organisations involved. The list is not complete, and the details are as reported.</li>
+      <li>Counts per country, WDA, theme, funder or partner can't be added up: one project often works in several countries or WDAs, covers several themes and has several funders and partners.</li>
+      <li>Budgets are for the whole project, as reported, and may include work outside KAZA. They can't be split by country, WDA or theme, and not every project discloses its budget, so the total is a lower limit.</li>
+      <li>A project counts as active when its end date has not passed, or when no end date is given.</li>
+      <li>The map shows the areas where projects work. Areas are approximate, and overlapping projects show as darker shading.</li>
+    </ul>
+  </section>
+
+  <footer id="rules"></footer>
+</div>
+
+<dialog id="dlg" class="win" aria-label="Project details">
+  <div class="win-bar" id="dlg-bar"><span>Project details · drag this bar to move, drag the bottom-right corner to resize</span><button class="close" id="dlg-close" type="button">Close</button></div>
+  <div class="dlg" id="dlg-body"></div>
+</dialog>
+<div class="tip" id="tip" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+// Load a data file; if it fails, say which file and why (shown on the page and in the browser console).
+const getJSON = u => fetch(u, {cache: 'no-cache'}).then(r => {
+  if (!r.ok) throw new Error(`${u}: the server answered ${r.status} ${r.statusText}`);
+  return r.text();
+}).then(t => { try { return JSON.parse(t); } catch (e) { throw new Error(`${u}: expected data but received a web page or other text ("${t.slice(0, 30).replace(/\s+/g, ' ')}…")`); } });
+const showLoadError = (where, e) => { const p = document.createElement('p'); p.style.cssText = 'padding:12px;color:#a33'; p.textContent = 'The data could not be loaded. ' + e.message; where(p); console.error(e); };
+// ---------- divider between map and list (width remembered in this browser) ----------
+(() => {
+  const main = document.querySelector('.main'), sp = document.getElementById('split'), KEY = 'kaza_dash_split', DEF = 60;
+  const set = v => { v = Math.max(35, Math.min(85, v)); main.style.setProperty('--split', v + '%'); sp.setAttribute('aria-valuenow', Math.round(v)); return v; };
+  let cur = DEF; try { const v = parseFloat(localStorage.getItem(KEY)); if (v) cur = v; } catch (e) {}
+  cur = set(cur); sp.setAttribute('aria-valuemin', 35); sp.setAttribute('aria-valuemax', 85);
+  const save = () => { try { localStorage.setItem(KEY, cur); } catch (e) {} };
+  sp.addEventListener('pointerdown', e => {
+    e.preventDefault(); sp.setPointerCapture(e.pointerId); sp.classList.add('drag'); document.body.classList.add('resizing');
+    const r = main.getBoundingClientRect();
+    const move = ev => { cur = set((ev.clientX - r.left - 7) / r.width * 100); };
+    const up = () => { sp.removeEventListener('pointermove', move); sp.removeEventListener('pointerup', up); sp.removeEventListener('pointercancel', up);
+      sp.classList.remove('drag'); document.body.classList.remove('resizing'); save(); };
+    sp.addEventListener('pointermove', move); sp.addEventListener('pointerup', up); sp.addEventListener('pointercancel', up);
+  });
+  sp.addEventListener('dblclick', () => { cur = set(DEF); save(); });
+  sp.addEventListener('keydown', e => {
+    const d = {ArrowLeft: -2, ArrowRight: 2, Home: 35 - cur, End: 85 - cur}[e.key]; if (d === undefined) return;
+    e.preventDefault(); cur = set(cur + d); save();
+  });
+})();
+
+Promise.all(['data/kaza_projects.geojson', 'data/tables.json', 'data/map_layers.json', 'data/meta.json'].map(getJSON)
+  .concat(getJSON('site.json').catch(e => { console.warn(e.message); return {}; })))
+.then(([GJ, TB, ML, META, SITE]) => {
+  const $ = id => document.getElementById(id);
+  const split = s => (s || '').split('; ').filter(Boolean);
+  const fmtUSD = v => v >= 1e9 ? (v / 1e9).toFixed(1) + ' bn' : v >= 1e6 ? (v / 1e6).toFixed(1) + ' m' : v >= 1e3 ? Math.round(v / 1e3) + ' k' : String(Math.round(v || 0));
+  const esc = s => String(s ?? '');
+
+  // d3 wants exterior rings clockwise; GeoJSON files use the opposite order. Flip any polygon that reads as inside out.
+  function rewind(geom) {
+    if (!geom) return geom;
+    const polys = geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates;
+    const fixed = polys.map(p => d3.geoArea({type: 'Polygon', coordinates: p}) > 2 * Math.PI ? p.map(r => r.slice().reverse()) : p);
+    return {type: 'MultiPolygon', coordinates: fixed};
+  }
+  const P = GJ.features.map(f => ({...f.properties, type: 'Feature', geometry: rewind(f.geometry)}));  // kept as GeoJSON features so d3 can draw them
+  P.forEach(p => { p._themes = split(p.themes); p._countries = split(p.countries); p._wdas = split(p.wdas).filter(w => w !== 'Outside WDAs');
+    p._funders = split(p.funders); p._partners = split(p.primary_partners).concat(split(p.local_partners));
+    p._area = p.geometry ? d3.geoArea(p.geometry) : 0;
+    p._bb = p.geometry ? d3.geoBounds(p) : null;
+    p._q = [p.title, p.lead_org, p.funders, p.donors, p.primary_partners, p.local_partners, p.areas].join(' ').toLowerCase(); });
+  const byId = new Map(P.map(p => [p.project_id, p]));
+  $('updated').textContent = `Last updated ${META.updated}.`;
+
+  // ---------- filters ----------
+  const F = {st: 'Active', country: '', wda: '', theme: '', funder: '', org: '', q: '', sy: '', ey: ''};   // sy / ey: start / end year range 'from:to', or ey 'none'
+  const counts = (key) => { const m = new Map(); P.forEach(p => p[key].forEach(v => m.set(v, (m.get(v) || 0) + 1))); return [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])); };
+  function fillSelect(id, label, key, sortAlpha) {
+    const s = $(id); s.replaceChildren(new Option(label, ''));
+    let items = counts(key); if (sortAlpha) items.sort((a, b) => a[0].localeCompare(b[0]));
+    items.forEach(([v, n]) => s.append(new Option(`${v} (${n})`, v)));
+  }
+  fillSelect('f-country', 'All countries', '_countries', true);
+  fillSelect('f-wda', 'All WDAs', '_wdas', true);
+  fillSelect('f-theme', 'All themes', '_themes');
+  fillSelect('f-funder', 'All funders', '_funders');
+  fillSelect('f-org', 'All partners', '_partners', true);
+  const SEL = {country: 'f-country', wda: 'f-wda', theme: 'f-theme', funder: 'f-funder', org: 'f-org'};
+  Object.entries(SEL).forEach(([k, id]) => $(id).onchange = e => { F[k] = e.target.value; update(); });
+  $('f-q').oninput = e => { F.q = e.target.value.trim().toLowerCase(); update(); };
+  document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { F.st = b.dataset.st; update(); });
+  $('reset').onclick = () => { Object.assign(F, {st: '', country: '', wda: '', theme: '', funder: '', org: '', q: '', sy: '', ey: ''}); $('f-q').value = ''; update(); };
+  function setFilter(k, v) { F[k] = F[k] === v ? '' : v; update(); }
+  const inYears = (date, key) => { if (!date) return false; const y = +date.slice(0, 4), [lo, hi] = key.split(':').map(Number); return y >= lo && y <= hi; };
+  const startOk = p => !F.sy || inYears(p.start_date, F.sy);
+  const endOk = p => !F.ey || (F.ey === 'none' ? !p.end_date : inYears(p.end_date, F.ey));
+  const keep = p => keepBase(p) && startOk(p) && endOk(p);
+  const keepBase = p => (!F.st || p.status === F.st) && (!F.country || p._countries.includes(F.country)) && (!F.wda || p._wdas.includes(F.wda))
+    && (!F.theme || p._themes.includes(F.theme)) && (!F.funder || p._funders.includes(F.funder)) && (!F.org || p._partners.includes(F.org))
+    && (!F.q || p._q.includes(F.q));
+
+  // ---------- map ----------
+  const svg = d3.select('#map'), gTiles = svg.append('g').attr('class', 'tiles'), g = svg.append('g'), proj = d3.geoMercator(), path = d3.geoPath(proj);
+
+  // ---------- background maps (web map tiles drawn under the projects) ----------
+  // Simple map: CARTO Positron (light) / Dark Matter (dark mode), OpenStreetMap data. Free for non-commercial use with a free CARTO key
+  // (carto.com/basemaps/apikey), set as "carto_key" in site.json; without a key CARTO shows an "API key required" watermark.
+  // Satellite: EOxCloudless (Sentinel-2) by EOX, free for non-commercial use (CC BY-NC-SA 4.0). Both need the credit line shown on the map.
+  const S2_YEAR = SITE.satellite_year || 2025;
+  const cartoKey = SITE.carto_key ? '?key=' + encodeURIComponent(SITE.carto_key) : '';
+  const OSM = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors';
+  const dark = () => document.documentElement.dataset.theme === 'dark' || (document.documentElement.dataset.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+  const BASEMAPS = {
+    map: {maxZ: 18, url: (z, x, y) => `https://basemaps.cartocdn.com/rastertiles/${dark() ? 'dark_all' : 'light_all'}/${z}/${x}/${y}.png${cartoKey}`,
+          credit: `${OSM} · © <a href="https://carto.com/attribution/" target="_blank" rel="noopener">CARTO</a>`},
+    sat: {maxZ: 15, url: (z, x, y) => `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-${S2_YEAR}_3857/default/g/${z}/${y}/${x}.jpg`,
+          credit: `<a href="https://cloudless.eox.at" target="_blank" rel="noopener">EOxCloudless</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data ${S2_YEAR})`},
+    none: null,
+  };
+  let basemap = 'map';
+  try { const v = localStorage.getItem('kaza_dash_basemap'); if (v in BASEMAPS) basemap = v; } catch (e) {}
+  let tileErrors = 0;
+  function drawTiles() {
+    const bm = BASEMAPS[basemap], r = svg.node().getBoundingClientRect();
+    if (!bm || !r.width) { gTiles.selectAll('image').remove(); return; }
+    const t = d3.zoomTransform(svg.node()), s = proj.scale() * t.k, [tx, ty] = proj.translate();
+    const W = 2 * Math.PI * s;                                            // width of the whole world in screen pixels
+    const x0 = t.x + t.k * tx - W / 2, y0 = t.y + t.k * ty - W / 2;      // where the world's top-left corner is
+    const z = Math.max(0, Math.min(bm.maxZ, Math.round(Math.log2(W * (devicePixelRatio || 1) / 256))));
+    const n = 2 ** z, ts = W / n, tiles = [];
+    for (let i = Math.max(0, Math.floor(-x0 / ts)); i <= Math.min(n - 1, Math.floor((r.width - x0) / ts)); i++)
+      for (let j = Math.max(0, Math.floor(-y0 / ts)); j <= Math.min(n - 1, Math.floor((r.height - y0) / ts)); j++)
+        tiles.push({key: `${basemap}/${dark() ? 'd' : 'l'}/${z}/${i}/${j}`, z, i, j});
+    gTiles.selectAll('image').data(tiles, d => d.key)
+      .join(enter => enter.append('image').attr('preserveAspectRatio', 'none').attr('href', d => bm.url(d.z, d.i, d.j))
+        .on('error', function () { d3.select(this).attr('visibility', 'hidden'); if (++tileErrors === 8) console.warn('Background map tiles could not be loaded.'); }))
+      .attr('x', d => x0 + d.i * ts).attr('y', d => y0 + d.j * ts).attr('width', ts + 0.5).attr('height', ts + 0.5);
+  }
+  function setBasemap(b) {
+    basemap = b; try { localStorage.setItem('kaza_dash_basemap', b); } catch (e) {}
+    document.querySelectorAll('.basemap button').forEach(x => x.setAttribute('aria-pressed', x.dataset.bm === b));
+    svg.classed('bm-sat', b === 'sat');
+    $('credit').innerHTML = BASEMAPS[b] ? BASEMAPS[b].credit : '';
+    gTiles.selectAll('image').remove(); drawTiles();
+  }
+  document.querySelectorAll('.basemap button').forEach(x => x.onclick = () => setBasemap(x.dataset.bm));
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => setBasemap(basemap));
+  window.addEventListener('themechange', () => setBasemap(basemap));   // simple map has a light and a dark version
+  const kaza = {type: 'Feature', geometry: rewind(ML.kaza)};
+  const gFoot = g.append('g');
+  g.append('g').selectAll('path').data(ML.countries.map(c => ({type: 'Feature', geometry: rewind(c.geometry), properties: c}))).join('path').attr('class', 'country');
+  g.append('g').selectAll('path').data(ML.wdas.map(w => ({type: 'Feature', geometry: rewind(w.geometry), properties: w}))).join('path').attr('class', 'wda');
+  g.append('path').datum(kaza).attr('class', 'kaza');
+  const gHl = g.append('g');
+  function fit() {
+    const r = svg.node().getBoundingClientRect();
+    svg.attr('viewBox', `0 0 ${r.width} ${r.height}`);
+    proj.fitExtent([[14, 14], [r.width - 14, r.height - 14]], kaza);
+    g.selectAll('path').attr('d', path);
+    drawTiles();
+  }
+  const zoom = d3.zoom().scaleExtent([1, 40]).clickDistance(8).on('zoom', e => { g.attr('transform', e.transform); $('pop').hidden = true; drawTiles(); });
+  svg.call(zoom).on('dblclick.zoom', null);
+  $('zin').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1.8);
+  $('zout').onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.8);
+  $('zreset').onclick = () => svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
+  let shown = [];
+  // projects (of those shown) under a mouse position; a quick bounding-box check first keeps this fast enough for hovering
+  function hitsAt(e) {
+    const t = d3.zoomTransform(svg.node()); const [x, y] = t.invert(d3.pointer(e, svg.node())); const ll = proj.invert([x, y]);
+    return shown.filter(p => p._bb && ll[0] >= p._bb[0][0] && ll[0] <= p._bb[1][0] && ll[1] >= p._bb[0][1] && ll[1] <= p._bb[1][1]
+      && d3.geoContains(p.geometry, ll)).sort((a, b) => a._area - b._area);
+  }
+  // hover (mouse only, not touch): how many projects are under the pointer
+  let hoverFrame = null;
+  if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
+    svg.on('mousemove', e => {
+      if (e.buttons) { hideTip(); return; }                 // dragging the map
+      if (hoverFrame) cancelAnimationFrame(hoverFrame);
+      hoverFrame = requestAnimationFrame(() => {
+        const n = hitsAt(e).length;
+        const filtered = Object.entries(F).some(([k, v]) => v && k !== 'st') || F.st !== '';
+        showTip(e, n ? `${n} project${n === 1 ? '' : 's'} here` : 'No projects here',
+          (filtered ? 'With the current filters. ' : '') + (n ? 'Click to see them.' : ''));
+      });
+    }).on('mouseleave', () => { if (hoverFrame) cancelAnimationFrame(hoverFrame); hideTip(); });
+  }
+  svg.on('click', e => {
+    hideTip();
+    const hits = hitsAt(e);
+    const pop = $('pop'); pop.replaceChildren();
+    if (!hits.length) { pop.hidden = true; return; }
+    const h = document.createElement('h3'); h.textContent = `${hits.length} project${hits.length > 1 ? 's' : ''} at this place · drag to move`; h.onclick = ev => ev.stopPropagation(); pop.append(h);
+    hits.slice(0, 40).forEach(p => { const b = document.createElement('button'); b.type = 'button'; b.textContent = p.title; b.onmouseenter = () => highlight(p); b.onclick = ev => { ev.stopPropagation(); open(p); }; pop.append(b); });
+    const box = svg.node().getBoundingClientRect(); const [px, py] = d3.pointer(e, svg.node());
+    pop.hidden = false; pop.style.height = ''; if (pop.offsetHeight > 300) pop.style.height = '300px';
+    pop.style.left = Math.min(px + 10, box.width - 300) + 'px'; pop.style.top = Math.min(py + 40, box.height - 160) + 'px';
+    draggable(h, pop, pop.parentElement);
+  });
+  function highlight(p) {
+    gHl.selectAll('path').data(p && p.geometry ? [p] : []).join('path').attr('class', 'foot hl').attr('d', path).style('pointer-events', 'none');
+    document.querySelectorAll('.item').forEach(el => el.classList.toggle('hl', p && el.dataset.id === p.project_id));
+  }
+
+  // ---------- tooltip ----------
+  const tip = $('tip');
+  function showTip(e, title, sub) { tip.replaceChildren(); const b = document.createElement('b'); b.textContent = title; const s = document.createElement('span'); s.textContent = sub; tip.append(b, s); tip.hidden = false;
+    tip.style.left = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; }
+  const hideTip = () => tip.hidden = true;
+
+  // ---------- charts ----------
+  function bars(id, key, filterKey, top, all) {
+    const m = new Map(); shown.forEach(p => p[key].forEach(v => m.set(v, (m.get(v) || 0) + 1)));
+    let items = [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    if (all) all.forEach(v => { if (!m.has(v)) items.push([v, 0]); });
+    if (top) items = items.slice(0, top);
+    const max = d3.max(items, d => d[1]) || 1; const el = $(id); el.replaceChildren();
+    if (!items.length) { el.textContent = 'No projects match the filters.'; return; }
+    items.forEach(([v, n]) => {
+      const lab = document.createElement('button'); lab.type = 'button'; lab.className = 'lab'; lab.textContent = v; lab.title = `Filter: ${v}`;
+      const bar = document.createElement('div'); bar.className = 'bar' + (F[filterKey] === v ? ' on' : (F[filterKey] ? ' dim' : ''));
+      const i = document.createElement('i'); i.style.width = (n / max * 82) + '%'; const em = document.createElement('em'); em.textContent = n;
+      bar.append(i, em);
+      const act = () => setFilter(filterKey, v);
+      lab.onclick = act; bar.onclick = act;
+      bar.onmousemove = e => showTip(e, v, `${n} project${n === 1 ? '' : 's'} · ${Math.round(n / shown.length * 100)}% of those shown · click to filter`); bar.onmouseleave = hideTip;
+      el.append(lab, bar);
+    });
+  }
+  // Starting / Finishing charts: each is drawn from the projects that pass every filter except its own year, so the other
+  // years stay visible (dimmed) after one is clicked. Clicking a year filters the whole dashboard; clicking it again clears it.
+  const plural = n => `${n} project${n === 1 ? '' : 's'}`;
+  function yearCols(el, ex, list, key, cap, verb, extra) {
+    el.replaceChildren(); ex.replaceChildren(); el.classList.add('click');
+    const ys = list.map(p => p[key.field] ? +p[key.field].slice(0, 4) : null).filter(Boolean);
+    if (!ys.length) return {max: 0};
+    const now = new Date().getFullYear(), lowest = d3.min(ys), highest = d3.max(ys);
+    const y0 = Math.min(Math.max(lowest, 2005), cap), y1 = Math.min(Math.max(highest, key.field === 'start_date' ? now : y0), cap);
+    const range = y => `${y === y0 && lowest < y0 ? 0 : y}:${y === y1 && highest > y1 ? 9999 : y}`;
+    const label = y => y === y0 && lowest < y0 ? `${y} or earlier` : y === y1 && highest > y1 ? `${y} or later` : String(y);
+    const m = d3.rollup(ys.map(y => Math.min(Math.max(y, y0), y1)), v => v.length, d => d);
+    const max = Math.max(d3.max(m.values()), extra || 0);
+    for (let y = y0; y <= y1; y++) {
+      const n = m.get(y) || 0, r = range(y), d = document.createElement('div'); d.style.height = (n / max * 100) + '%';
+      if (F[key.f]) d.className = F[key.f] === r ? 'on' : 'dim';
+      d.onmousemove = e => showTip(e, label(y), `${plural(n)} ${verb(y, now)} · ${F[key.f] === r ? 'click again to clear' : 'click to filter'}`);
+      d.onmouseleave = hideTip; d.onclick = () => { hideTip(); setYear(key.f, r, label(y)); };
+      el.append(d);
+    }
+    [...new Set([y0, Math.round((y0 + y1) / 2), y1])].forEach(y => { const s = document.createElement('span'); s.textContent = y === y1 && highest > y1 ? `${y}+` : y; ex.append(s); });
+    return {max};
+  }
+  const yearLabel = {sy: '', ey: ''};
+  function setYear(f, r, label) { if (F[f] === r) { F[f] = ''; } else { F[f] = r; yearLabel[f] = label; } update(); }
+  function years() {
+    const now = new Date().getFullYear();
+    yearCols($('c-year'), $('c-year-x'), P.filter(p => keepBase(p) && endOk(p)), {field: 'start_date', f: 'sy'}, now + 10, () => 'started');
+    const ends = P.filter(p => keepBase(p) && startOk(p)), none = ends.filter(p => !p.end_date).length;
+    const {max} = yearCols($('c-end'), $('c-end-x'), ends, {field: 'end_date', f: 'ey'}, now + 10,
+      (y, n) => y < n ? 'ended' : y === n ? 'ending this year (or already ended)' : 'ending', none);
+    const nz = $('c-end-none'); nz.replaceChildren(); nz.classList.add('click');
+    const d = document.createElement('div'); d.className = 'none' + (F.ey === 'none' ? ' on' : F.ey ? ' dim' : ''); d.style.height = (none / (max || none || 1) * 100) + '%';
+    d.onmousemove = e => showTip(e, 'No end date', `${plural(none)} without an end date, or reported as ongoing · ${F.ey === 'none' ? 'click again to clear' : 'click to filter'}`);
+    d.onmouseleave = hideTip; d.onclick = () => { hideTip(); setYear('ey', 'none', 'No end date'); }; nz.append(d);
+    [['sy', 'Started'], ['ey', 'Finishing']].forEach(([f, w]) => { const b = $(f + '-clear'); b.hidden = !F[f];
+      b.textContent = F[f] ? `${f === 'ey' && F.ey === 'none' ? 'No end date' : yearLabel[f]} ×` : ''; b.title = 'Clear this year filter'; });
+  }
+  $('sy-clear').onclick = () => { F.sy = ''; update(); };
+  $('ey-clear').onclick = () => { F.ey = ''; update(); };
+
+  // ---------- list + detail ----------
+  function open(p) {
+    $('pop').hidden = true; highlight(p);
+    const b = $('dlg-body'); b.replaceChildren();
+    const h = document.createElement('h2'); h.textContent = p.title;
+    const st = document.createElement('span'); st.className = 'badge ' + p.status; st.textContent = p.status;
+    const dl = document.createElement('dl');
+    const row = (k, v) => { if (!v) return; const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v; dl.append(dt, dd); };
+    row('Lead organisation', p.lead_org);
+    row('Period', `${p.start_date || '?'} to ${p.end_date || 'ongoing / not given'}`);
+    row('Total budget', p.budget_usd ? 'USD ' + Math.round(p.budget_usd).toLocaleString('en') : (p.budget_original ? 'Not converted to USD yet' : 'Not disclosed'));
+    row('Funders', p.donors);
+    row('Primary partners', p.primary_partners); row('Local partners', p.local_partners);
+    row('Themes', p.themes); row('Areas', p.areas); row('Countries', p.countries); row('WDAs', p.wdas);
+    row('Part of', p.larger_programme + (p.parent_programme_id ? ` (${p.parent_programme_id})` : ''));
+    if (p.budget_currency && p.budget_currency !== 'USD' && p.budget_original) row('Budget as reported', `${p.budget_currency} ${Math.round(p.budget_original).toLocaleString('en')}` + (p.budget_scope === 'larger' ? ' (whole programme; the figure above is the KAZA share where known)' : ''));
+    if (p.end_date_original) row('Original end date', p.end_date_original);
+    row('IATI identifiers', p.iati_identifiers); row("Funders' project numbers", p.funder_refs);
+    row('Source', p.source); row('Project ID', p.project_id);
+    b.append(h, st, dl); showWin();
+  }
+  // ---- the details window: movable and resizable; its size and place are remembered in this browser ----
+  const win = $('dlg'), KEY = 'kaza_dash_window';
+  const small = () => innerWidth < 620;
+  function clampWin() {
+    const r = win.getBoundingClientRect();
+    win.style.left = Math.max(8, Math.min(r.left, innerWidth - 80)) + 'px';
+    win.style.top = Math.max(8, Math.min(r.top, innerHeight - 50)) + 'px';
+  }
+  function showWin() {
+    if (!win.open) {
+      win.show();
+      if (small()) { Object.assign(win.style, {left: '8px', top: '8px', width: (innerWidth - 16) + 'px', height: (innerHeight - 16) + 'px'}); }
+      else {
+        let s = null; try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+        if (s) Object.assign(win.style, {left: s.left, top: s.top, width: s.width, height: s.height});
+        else { win.style.left = Math.max(8, (innerWidth - win.offsetWidth) / 2) + 'px'; win.style.top = '90px'; }
+        clampWin();
+      }
+    }
+    win.scrollTop = 0; $('dlg-close').focus();
+  }
+  function saveWin() {
+    if (small() || !win.open) return;
+    try { localStorage.setItem(KEY, JSON.stringify({left: win.style.left, top: win.style.top, width: win.offsetWidth + 'px', height: win.offsetHeight + 'px'})); } catch (e) {}
+  }
+  $('dlg-close').onclick = () => win.close();
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && win.open) win.close(); });
+  new ResizeObserver(saveWin).observe(win);
+  function draggable(handle, box, within) {   // move 'box' by dragging 'handle'; 'within' = element it must stay inside (null = window)
+    handle.addEventListener('pointerdown', e => {
+      if (e.target.closest('button')) return;
+      e.preventDefault(); handle.setPointerCapture(e.pointerId);
+      const sx = e.clientX, sy = e.clientY, ox = box.offsetLeft, oy = box.offsetTop;
+      const move = ev => {
+        const W = within ? within.clientWidth : innerWidth, H = within ? within.clientHeight : innerHeight;
+        box.style.left = Math.max(0, Math.min(ox + ev.clientX - sx, W - 80)) + 'px';
+        box.style.top = Math.max(0, Math.min(oy + ev.clientY - sy, H - 40)) + 'px';
+      };
+      const up = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); if (box === win) saveWin(); };
+      handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up);
+    });
+  }
+  draggable($('dlg-bar'), win, null);
+  function list() {
+    const el = $('list'); el.replaceChildren();
+    shown.slice().sort((a, b) => (b.start_date || '').localeCompare(a.start_date || '')).forEach(p => {
+      const it = document.createElement('button'); it.type = 'button'; it.className = 'item'; it.dataset.id = p.project_id; it.setAttribute('role', 'listitem');
+      const t = document.createElement('b'); t.textContent = p.title;
+      const s = document.createElement('span'); const bd = document.createElement('i'); bd.className = 'badge ' + p.status; bd.style.fontStyle = 'normal'; bd.textContent = p.status;
+      s.append(bd, document.createTextNode([p.lead_org, p.countries, (p.start_date || '').slice(0, 4) + (p.end_date ? '–' + p.end_date.slice(0, 4) : '')].filter(Boolean).join(' · ')));
+      it.append(t, s); it.onmouseenter = () => highlight(p); it.onclick = () => open(p);
+      el.append(it);
+    });
+    $('list-n').textContent = `· ${shown.length}`;
+  }
+
+  // ---------- update everything ----------
+  function update() {
+    shown = P.filter(keep);
+    document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.st === F.st));
+    Object.entries(SEL).forEach(([k, id]) => { $(id).value = F[k]; $(id).classList.toggle('set', !!F[k]); });
+    gFoot.selectAll('path').data(shown.filter(p => p.geometry).sort((a, b) => b._area - a._area), d => d.project_id)
+      .join('path').attr('class', 'foot').attr('d', path).style('pointer-events', 'none');
+    // lighter shading when many projects are shown, so overlaps stay readable instead of turning solid
+    const nShown = Math.max(shown.length, 1);
+    gFoot.selectAll('path').style('fill-opacity', Math.max(0.03, Math.min(0.08, 3 / nShown)))   // below ~0.03 browsers' colour rounding turns the stack grey
+      .style('stroke-opacity', Math.max(0.06, Math.min(0.35, 12 / nShown)));
+    $('k-proj').textContent = shown.length;
+    const soon = new Date(); soon.setFullYear(soon.getFullYear() + 1); const today = new Date().toISOString().slice(0, 10), lim = soon.toISOString().slice(0, 10);
+    $('k-end').textContent = shown.filter(p => p.end_date && p.end_date >= today && p.end_date <= lim).length;
+    const orgs = new Set(); shown.forEach(p => { p._funders.concat(p._partners).forEach(o => orgs.add(o)); if (p.lead_org) orgs.add(p.lead_org); });
+    $('k-org').textContent = orgs.size;
+    const withB = shown.filter(p => p.budget_usd); $('k-bud').textContent = fmtUSD(d3.sum(withB, p => p.budget_usd));
+    $('k-bud-l').textContent = `total budgets reported (USD), ${withB.length} of ${shown.length} projects`;
+    $('count').textContent = `${shown.length} of ${P.length} projects`;
+    bars('c-theme', '_themes', 'theme'); bars('c-wda', '_wdas', 'wda', 0, Object.values(TB.wda_names)); bars('c-country', '_countries', 'country');
+    bars('c-funder', '_funders', 'funder', 12); bars('c-org', '_partners', 'org', 12); years(); list(); highlight(null);
+  }
+  $('csv').onclick = () => {
+    const cols = ['project_id', 'title', 'lead_org', 'status', 'start_date', 'end_date', 'budget_usd', 'themes', 'donors', 'primary_partners', 'local_partners', 'areas', 'countries', 'wdas'];
+    const q = v => { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    const txt = [cols.join(',')].concat(shown.map(p => cols.map(c => q(p[c])).join(','))).join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + txt], {type: 'text/csv'})); a.download = 'kaza_projects.csv'; a.click();
+  };
+  // GeoJSON of the projects shown (same filters as the CSV), with the shapes as published
+  $('geojson').onclick = () => {
+    const ids = new Set(shown.map(p => p.project_id));
+    const fc = {type: 'FeatureCollection', name: 'kaza_projects', features: GJ.features.filter(f => ids.has(f.properties.project_id))};
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(fc)], {type: 'application/geo+json'})); a.download = 'kaza_projects.geojson'; a.click();
+  };
+  $('rules').replaceChildren(...Object.entries(META.rules).map(([k, v]) => { const p = document.createElement('p'); p.textContent = `${k[0].toUpperCase() + k.slice(1)}: ${v}.`; return p; }));
+  setBasemap(basemap); fit(); update();
+  window.__dash = {proj, svg: svg.node()};   // for testing
+  new ResizeObserver(() => fit()).observe(svg.node());
+}).catch(e => showLoadError(p => document.querySelector('.wrap').prepend(p), e));
+</script>
+<script>
+// Light / Dark / Auto switch; "Auto" follows the device or browser setting. Shared by the dashboard and the picker.
+(() => {
+  const KEY = 'kaza_theme', root = document.documentElement, btns = document.querySelectorAll('.theme-switch button');
+  const paint = () => btns.forEach(b => b.setAttribute('aria-pressed', b.dataset.theme === (root.dataset.theme || 'auto')));
+  btns.forEach(b => b.onclick = () => {
+    const t = b.dataset.theme;
+    if (t === 'auto') delete root.dataset.theme; else root.dataset.theme = t;
+    try { if (t === 'auto') localStorage.removeItem(KEY); else localStorage.setItem(KEY, t); } catch (e) {}
+    paint(); window.dispatchEvent(new Event('themechange'));
+  });
+  paint();
+})();
+</script>
+</body>
+</html>
